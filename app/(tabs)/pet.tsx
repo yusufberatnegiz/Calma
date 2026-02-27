@@ -1,7 +1,15 @@
 import React, { useState } from "react";
-import { Text, StyleSheet, View, Pressable, Image, ImageSourcePropType } from "react-native";
+import {
+  Text,
+  StyleSheet,
+  View,
+  Pressable,
+  Image,
+  ImageSourcePropType,
+} from "react-native";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
-import { Screen } from "../../src/components/Screen";
 import { colors } from "../../src/theme/colors";
 
 type CatStage = "baby" | "teen" | "adult";
@@ -12,6 +20,12 @@ const stageLabels: Record<CatStage, string> = {
   baby: "Kitten",
   teen: "Cat",
   adult: "Royal Cat",
+};
+
+const stageEmoji: Record<CatStage, string> = {
+  baby: "🐱",
+  teen: "🐈",
+  adult: "👑",
 };
 
 const xpThresholds: Record<CatStage, number> = {
@@ -26,9 +40,10 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
   adult: require("../../assets/cat-grown.png"),
 };
 
-const CAT_IMAGE_SIZE = 200;
+const CAT_IMAGE_SIZE = 240;
 
 export default function PetScreen() {
+  const insets = useSafeAreaInsets();
   const [petName] = useState("Mochi");
   const [stage, setStage] = useState<CatStage>("baby");
   const [xp, setXp] = useState(35);
@@ -48,10 +63,24 @@ export default function PetScreen() {
 
   const level = stages.indexOf(stage) + 1;
   const canEvolve = stage !== "adult" && xp >= xpThresholds[stage];
+  const xpPercent = Math.min((xp / 100) * 100, 100);
 
   return (
-    <Screen>
-      <View style={[styles.container, styles.backgroundGradient]}>
+    <LinearGradient
+      colors={[colors.gradientTop, colors.gradientMid, colors.gradientBottom]}
+      locations={[0, 0.5, 1]}
+      style={styles.gradient}
+    >
+      <View
+        style={[
+          styles.screen,
+          {
+            paddingTop: Math.max(insets.top + 4, 20),
+            paddingBottom: Math.max(insets.bottom + 8, 16),
+          },
+        ]}
+      >
+        {/* ── Header ── */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello! 👋</Text>
@@ -60,11 +89,12 @@ export default function PetScreen() {
             </Text>
           </View>
           <View style={styles.xpBadge}>
-            <Ionicons name="star" size={14} color={colors.accent} />
-            <Text style={styles.xpText}>{xp} XP</Text>
+            <Ionicons name="star" size={13} color={colors.accent} />
+            <Text style={styles.xpBadgeText}>{xp} XP</Text>
           </View>
         </View>
 
+        {/* ── Pet display ── */}
         <View style={styles.main}>
           <Pressable onPress={handlePetCat} style={styles.catImageWrap}>
             <Image
@@ -74,41 +104,55 @@ export default function PetScreen() {
             />
           </Pressable>
 
-          <Text style={styles.stageLabel}>{stageLabels[stage]}</Text>
+          {/* Stage chip */}
+          <View style={styles.stageChip}>
+            <Text style={styles.stageChipText}>
+              {stageEmoji[stage]} {stageLabels[stage]}
+            </Text>
+          </View>
+
           <Text style={styles.petName}>{petName}</Text>
 
+          {/* XP bar */}
           <View style={styles.xpSection}>
             <View style={styles.xpRow}>
               <Text style={styles.xpMeta}>Level {level}</Text>
-              <Text style={styles.xpMeta}>{xp}/100</Text>
+              <Text style={styles.xpMeta}>{xp} / 100</Text>
             </View>
-            <View style={styles.xpBarBackground}>
-              <View style={[styles.xpBarFill, { width: `${xp}%` }]} />
+            <View style={styles.xpBarBg}>
+              <LinearGradient
+                colors={[colors.accentLight, colors.accent]}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+                style={[styles.xpBarFill, { width: `${xpPercent}%` }]}
+              />
             </View>
           </View>
         </View>
 
+        {/* ── Stats row ── */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
-            <Ionicons name="heart-outline" size={18} color={colors.textSecondary} />
+            <Ionicons name="heart" size={18} color="#F472B6" />
             <Text style={styles.statValue}>3</Text>
             <Text style={styles.statLabel}>Resisted</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+            <Ionicons name="sparkles" size={18} color={colors.accent} />
             <Text style={styles.statValue}>5</Text>
             <Text style={styles.statLabel}>Tasks</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="star-outline" size={18} color={colors.textSecondary} />
+            <Ionicons name="flame" size={18} color="#FB923C" />
             <Text style={styles.statValue}>7</Text>
             <Text style={styles.statLabel}>Day Streak</Text>
           </View>
         </View>
 
+        {/* ── Action button ── */}
         {canEvolve ? (
-          <Pressable style={styles.growButton} onPress={handleGrow}>
-            <Text style={styles.growButtonText}>✨ Evolve {petName}</Text>
+          <Pressable style={styles.evolveButton} onPress={handleGrow}>
+            <Text style={styles.evolveButtonText}>✨ Evolve {petName}</Text>
           </Pressable>
         ) : (
           <Pressable style={styles.petButton} onPress={handlePetCat}>
@@ -116,54 +160,61 @@ export default function PetScreen() {
           </Pressable>
         )}
       </View>
-    </Screen>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  gradient: {
     flex: 1,
-    gap: 24,
   },
-  backgroundGradient: {
-    backgroundColor: colors.backgroundGradientTop,
+  screen: {
+    flex: 1,
+    paddingHorizontal: 22,
+    gap: 20,
   },
+
+  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
   },
   greeting: {
-    fontSize: 22,
-    fontWeight: "600",
+    fontFamily: "Nunito_800ExtraBold",
+    fontSize: 24,
     color: colors.textPrimary,
+    letterSpacing: -0.3,
   },
   mood: {
-    marginTop: 4,
-    fontSize: 14,
+    fontFamily: "Nunito_400Regular",
+    marginTop: 2,
+    fontSize: 13,
     color: colors.textSecondary,
   },
   xpBadge: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    gap: 5,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
     borderRadius: 999,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceCard,
     borderWidth: 1,
     borderColor: colors.borderSubtle,
-    gap: 4,
   },
-  xpText: {
+  xpBadgeText: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 12,
-    fontWeight: "600",
-    color: colors.textPrimary,
+    color: colors.accent,
   },
+
+  // Main pet area
   main: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: 12,
+    gap: 10,
   },
   catImageWrap: {
     width: CAT_IMAGE_SIZE,
@@ -175,50 +226,62 @@ const styles = StyleSheet.create({
     width: CAT_IMAGE_SIZE,
     height: CAT_IMAGE_SIZE,
   },
-  stageLabel: {
+  stageChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 5,
+    borderRadius: 999,
+    backgroundColor: colors.surfaceCard,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+  },
+  stageChipText: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 12,
-    color: colors.muted,
+    color: colors.textSecondary,
   },
   petName: {
-    fontSize: 18,
-    fontWeight: "600",
+    fontFamily: "Nunito_800ExtraBold",
+    fontSize: 28,
     color: colors.textPrimary,
+    letterSpacing: -0.5,
   },
+
+  // XP
   xpSection: {
-    marginTop: 12,
     width: 220,
-    gap: 4,
+    gap: 6,
+    marginTop: 4,
   },
   xpRow: {
     flexDirection: "row",
     justifyContent: "space-between",
   },
   xpMeta: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 11,
     color: colors.textSecondary,
   },
-  xpBarBackground: {
-    marginTop: 4,
+  xpBarBg: {
     height: 10,
     borderRadius: 999,
-    backgroundColor: "#E5E7EB",
+    backgroundColor: colors.accentLight,
     overflow: "hidden",
   },
   xpBarFill: {
     height: "100%",
     borderRadius: 999,
-    backgroundColor: colors.accent,
   },
+
+  // Stats
   statsRow: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    gap: 12,
+    gap: 10,
   },
   statCard: {
     flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: 16,
-    paddingVertical: 10,
+    backgroundColor: colors.surfaceCard,
+    borderRadius: 18,
+    paddingVertical: 12,
     paddingHorizontal: 8,
     alignItems: "center",
     gap: 4,
@@ -226,40 +289,41 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
   },
   statValue: {
-    fontSize: 14,
-    fontWeight: "600",
+    fontFamily: "Nunito_800ExtraBold",
+    fontSize: 18,
     color: colors.textPrimary,
   },
   statLabel: {
-    fontSize: 10,
+    fontFamily: "Nunito_400Regular",
+    fontSize: 11,
     color: colors.textSecondary,
   },
-  growButton: {
-    alignSelf: "center",
-    marginTop: 4,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+
+  // Buttons
+  evolveButton: {
+    alignSelf: "stretch",
+    paddingVertical: 14,
     borderRadius: 999,
     backgroundColor: colors.evolveGreen,
+    alignItems: "center",
   },
-  growButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
+  evolveButtonText: {
+    fontFamily: "Nunito_700Bold",
+    fontSize: 15,
     color: colors.evolveGreenText,
   },
   petButton: {
-    alignSelf: "center",
-    marginTop: 4,
-    paddingHorizontal: 20,
-    paddingVertical: 10,
+    alignSelf: "stretch",
+    paddingVertical: 14,
     borderRadius: 999,
-    backgroundColor: colors.surface,
+    backgroundColor: colors.surfaceCard,
+    alignItems: "center",
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
   petButtonText: {
-    fontSize: 13,
-    fontWeight: "600",
-    color: colors.textPrimary,
+    fontFamily: "Nunito_700Bold",
+    fontSize: 15,
+    color: colors.accent,
   },
 });
