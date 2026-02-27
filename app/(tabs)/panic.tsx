@@ -85,7 +85,7 @@ export default function PanicScreen() {
         ]}
         showsVerticalScrollIndicator={false}
       >
-        <Text style={styles.title}>SOS 🌿</Text>
+        <Text style={styles.title}>Calm Down 🌿</Text>
         <Text style={styles.subtitle}>
           You're doing great. Let's work through this together.
         </Text>

@@ -50,7 +50,7 @@ export default function PetScreen() {
   const [mood] = useState("happy");
 
   const handlePetCat = () => {
-    // Petting / touching the pet does not grant XP.
+    setXp((prev) => Math.min(prev + 5, 100));
   };
 
   const handleGrow = () => {
