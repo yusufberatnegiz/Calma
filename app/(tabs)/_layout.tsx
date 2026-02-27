@@ -39,7 +39,7 @@ export default function TabsLayout() {
       })}
     >
       <Tabs.Screen name="pet" options={{ title: "Home" }} />
-      <Tabs.Screen name="panic" options={{ title: "Calm" }} />
+      <Tabs.Screen name="panic" options={{ title: "SOS" }} />
       <Tabs.Screen name="log" options={{ title: "Log" }} />
       <Tabs.Screen name="tasks" options={{ title: "Tasks" }} />
     </Tabs>

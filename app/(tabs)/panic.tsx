@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Text, StyleSheet, View, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../src/components/Screen";
 import { colors } from "../../src/theme/colors";
 
@@ -67,9 +68,14 @@ export default function PanicScreen() {
   };
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Calm Space</Text>
+    <LinearGradient
+      colors={[colors.gradientTop, colors.gradientMid, colors.gradientBottom]}
+      locations={[0, 0.5, 1]}
+      style={styles.gradient}
+    >
+      <Screen backgroundColor="transparent">
+        <ScrollView contentContainerStyle={styles.scrollContent}>
+        <Text style={styles.title}>Calm Down 🌿</Text>
         <Text style={styles.subtitle}>
           You're in a place to pause and notice urges, one step at a time.
         </Text>
@@ -228,12 +234,16 @@ export default function PanicScreen() {
             </Pressable>
           </View>
         )}
-      </ScrollView>
-    </Screen>
+        </ScrollView>
+      </Screen>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   scrollContent: {
     paddingBottom: 24,
     gap: 20,

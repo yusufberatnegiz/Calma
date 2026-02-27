@@ -29,8 +29,8 @@ const stageEmoji: Record<CatStage, string> = {
 };
 
 const xpThresholds: Record<CatStage, number> = {
-  baby: 40,
-  teen: 80,
+  baby: 100,
+  teen: 100,
   adult: Infinity,
 };
 
@@ -50,7 +50,7 @@ export default function PetScreen() {
   const [mood] = useState("happy");
 
   const handlePetCat = () => {
-    // Petting / touching the pet does not grant XP.
+    setXp((prev) => Math.min(prev + 5, 100));
   };
 
   const handleGrow = () => {
