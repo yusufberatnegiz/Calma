@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Text, StyleSheet, View, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Screen } from "../../src/components/Screen";
+import { LinearGradient } from "expo-linear-gradient";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { colors } from "../../src/theme/colors";
 
 type Phase = "select" | "intensity" | "timer" | "script" | "outcome";
@@ -25,6 +26,7 @@ const acceptanceScripts = [
 ];
 
 export default function PanicScreen() {
+  const insets = useSafeAreaInsets();
   const [phase, setPhase] = useState<Phase>("select");
   const [selectedUrge, setSelectedUrge] = useState<UrgeType | null>(null);
   const [intensity, setIntensity] = useState(5);
@@ -67,45 +69,44 @@ export default function PanicScreen() {
   };
 
   return (
-    <Screen>
-      <ScrollView contentContainerStyle={styles.scrollContent}>
-        <Text style={styles.title}>Calm Space</Text>
+    <LinearGradient
+      colors={[colors.gradientTop, colors.gradientMid, colors.gradientBottom]}
+      locations={[0, 0.5, 1]}
+      style={styles.gradient}
+    >
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top + 4, 20),
+            paddingBottom: Math.max(insets.bottom + 8, 32),
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
+      >
+        <Text style={styles.title}>SOS 🌿</Text>
         <Text style={styles.subtitle}>
-          You're in a place to pause and notice urges, one step at a time.
+          You're doing great. Let's work through this together.
         </Text>
 
         {phase === "select" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What kind of urge is here?</Text>
+            <Text style={styles.sectionTitle}>What kind of urge are you feeling?</Text>
             <View style={styles.urgeList}>
-              {urgeTypes.map((urge) => {
-                const Icon = Ionicons;
-                const isSelected = selectedUrge === urge.id;
-                return (
-                  <Pressable
-                    key={urge.id}
-                    style={[styles.urgeButton, isSelected && styles.urgeButtonSelected]}
-                    onPress={() => {
-                      setSelectedUrge(urge.id);
-                      setPhase("intensity");
-                    }}
-                  >
-                    <Icon
-                      name={urge.icon}
-                      size={20}
-                      color={isSelected ? colors.accent : colors.textSecondary}
-                    />
-                    <Text
-                      style={[
-                        styles.urgeLabel,
-                        isSelected && { color: colors.textPrimary, fontWeight: "600" },
-                      ]}
-                    >
-                      {urge.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+              {urgeTypes.map((urge) => (
+                <Pressable
+                  key={urge.id}
+                  style={({ pressed }) => [styles.urgeButton, pressed && styles.urgeButtonPressed]}
+                  onPress={() => {
+                    setSelectedUrge(urge.id);
+                    setPhase("intensity");
+                  }}
+                >
+                  <Ionicons name={urge.icon} size={22} color={colors.accent} />
+                  <Text style={styles.urgeLabel}>{urge.label}</Text>
+                </Pressable>
+              ))}
             </View>
           </View>
         )}
@@ -126,17 +127,11 @@ export default function PanicScreen() {
                     key={n}
                     style={[
                       styles.intensityDot,
-                      active && { backgroundColor },
-                      !active && { backgroundColor: "#E5E7EB" },
+                      active ? { backgroundColor } : { backgroundColor: "#E5E7EB" },
                     ]}
                     onPress={() => setIntensity(n)}
                   >
-                    <Text
-                      style={[
-                        styles.intensityLabel,
-                        active && { color: "#FFFFFF" },
-                      ]}
-                    >
+                    <Text style={[styles.intensityLabel, active && { color: "#FFFFFF" }]}>
                       {n}
                     </Text>
                   </Pressable>
@@ -191,14 +186,12 @@ export default function PanicScreen() {
         {phase === "script" && (
           <View style={styles.section}>
             <Text style={styles.scriptText}>
-              “{acceptanceScripts[scriptIndex]}”
+              "{acceptanceScripts[scriptIndex]}"
             </Text>
             <View style={styles.timerButtonsRow}>
               <Pressable
                 style={styles.secondaryButton}
-                onPress={() =>
-                  setScriptIndex((i) => (i + 1) % acceptanceScripts.length)
-                }
+                onPress={() => setScriptIndex((i) => (i + 1) % acceptanceScripts.length)}
               >
                 <Text style={styles.secondaryButtonText}>Next thought</Text>
               </Pressable>
@@ -229,54 +222,66 @@ export default function PanicScreen() {
           </View>
         )}
       </ScrollView>
-    </Screen>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
+  scroll: {
+    flex: 1,
+  },
   scrollContent: {
-    paddingBottom: 24,
+    paddingHorizontal: 20,
     gap: 20,
   },
   title: {
-    fontSize: 20,
-    fontWeight: "600",
+    fontSize: 26,
+    fontWeight: "700",
     color: colors.textPrimary,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    marginTop: 4,
+    marginTop: -8,
     fontSize: 14,
     color: colors.textSecondary,
+    lineHeight: 20,
   },
   section: {
-    marginTop: 12,
-    gap: 16,
+    marginTop: 4,
+    gap: 14,
   },
   sectionTitle: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "600",
     color: colors.textPrimary,
   },
   urgeList: {
-    gap: 8,
+    gap: 12,
   },
   urgeButton: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    gap: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 18,
     borderRadius: 16,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.borderSubtle,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
   },
-  urgeButtonSelected: {
-    borderColor: colors.accent,
+  urgeButtonPressed: {
+    opacity: 0.85,
   },
   urgeLabel: {
-    fontSize: 14,
-    color: colors.textSecondary,
+    fontSize: 15,
+    fontWeight: "600",
+    color: colors.textPrimary,
   },
   intensityRow: {
     flexDirection: "row",
@@ -301,7 +306,7 @@ const styles = StyleSheet.create({
   primaryButton: {
     marginTop: 4,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 999,
     backgroundColor: colors.accent,
     alignItems: "center",
@@ -312,8 +317,9 @@ const styles = StyleSheet.create({
     color: "#FFFFFF",
   },
   secondaryButton: {
+    flex: 1,
     paddingHorizontal: 20,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 999,
     backgroundColor: colors.surface,
     borderWidth: 1,
@@ -343,6 +349,11 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 12,
+    elevation: 3,
   },
   timerText: {
     fontSize: 32,
@@ -359,6 +370,8 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: colors.textPrimary,
     textAlign: "center",
+    lineHeight: 24,
+    paddingHorizontal: 8,
   },
   outcomeSection: {
     alignItems: "center",
@@ -377,6 +390,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: "center",
+    lineHeight: 20,
   },
   xpChip: {
     marginTop: 4,
@@ -393,4 +407,3 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
 });
-
