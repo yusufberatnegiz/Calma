@@ -455,7 +455,7 @@ export default function PetScreen() {
             <Text style={styles.statLabel}>Resisted</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="sparkles" size={18} color={colors.accent} />
+            <Ionicons name="checkmark-done-outline" size={18} color={colors.accent} />
             <Text style={styles.statValue}>5</Text>
             <Text style={styles.statLabel}>Tasks</Text>
           </View>
@@ -472,8 +472,8 @@ export default function PetScreen() {
             <Text style={styles.evolveButtonText}>✨ Evolve {petName}</Text>
           </Pressable>
         ) : (
-          <Pressable style={styles.petButton} onPress={handlePetCat}>
-            <Text style={styles.petButtonText}>🐾 Pet {petName}</Text>
+          <Pressable style={styles.customizeButton} onPress={() => {}}>
+            <Text style={styles.customizeButtonText}>✨ Customize</Text>
           </Pressable>
         )}
       </View>
@@ -641,7 +641,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.evolveGreenText,
   },
-  petButton: {
+  customizeButton: {
     alignSelf: "stretch",
     paddingVertical: 14,
     borderRadius: 999,
@@ -650,7 +650,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  petButtonText: {
+  customizeButtonText: {
     fontFamily: "Nunito_700Bold",
     fontSize: 15,
     color: colors.accent,
