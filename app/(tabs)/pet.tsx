@@ -41,6 +41,7 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
 };
 
 const CAT_SIZE = 240;
+const CAT_SIZE_ADULT = 280; // royal cat slightly bigger
 const PX = 4; // pixel art unit size
 
 // 7 × 6 red pixel heart
@@ -329,10 +330,12 @@ export default function PetScreen() {
   const canEvolve = stage !== "adult" && xp >= xpThresholds[stage];
   const xpPercent = Math.min((xp / 100) * 100, 100);
 
+  const catSize = stage === "adult" ? CAT_SIZE_ADULT : CAT_SIZE;
+
   // Particle anchor positions within catWrap
-  const heartCenterX = CAT_SIZE / 2 - PX * 3.5; // center 7-col heart
-  const sparkCenterX = CAT_SIZE / 2 - PX * 2.5; // center 5-col star
-  const sparkCenterY = CAT_SIZE / 2 - PX * 2.5;
+  const heartCenterX = catSize / 2 - PX * 3.5; // center 7-col heart
+  const sparkCenterX = catSize / 2 - PX * 2.5; // center 5-col star
+  const sparkCenterY = catSize / 2 - PX * 2.5;
 
   return (
     <LinearGradient
@@ -365,12 +368,16 @@ export default function PetScreen() {
 
         {/* ── Pet display ── */}
         <View style={styles.main}>
-          <Pressable onPress={handlePetCat} style={styles.catWrap}>
+          <Pressable
+            onPress={handlePetCat}
+            style={[styles.catWrap, { width: catSize, height: catSize }]}
+          >
             {/* Cat image (renders first = behind particles) */}
             <Animated.Image
               source={catImages[stage]}
               style={[
                 styles.catImage,
+                { width: catSize, height: catSize },
                 {
                   opacity: catOpacity,
                   transform: [{ translateY: floatAnim }, { scale: catScale }],
@@ -388,7 +395,7 @@ export default function PetScreen() {
                   styles.particle,
                   {
                     left: heartCenterX + h.x,
-                    top: CAT_SIZE * 0.45,
+                    top: catSize * 0.45,
                     transform: [{ translateY: h.translateY }],
                     opacity: h.opacity,
                   },
