@@ -1,8 +1,8 @@
 export const colors = {
   // Gradient stops
-  gradientTop: "#F0EAFB",
-  gradientMid: "#E8EDF8",
-  gradientBottom: "#DCF0FE",
+  gradientTop: "#FFD6DA",
+  gradientMid: "#F8F4FE",
+  gradientBottom: "#C5E8FE",
 
   // Surfaces
   surface: "#FFFFFF",
