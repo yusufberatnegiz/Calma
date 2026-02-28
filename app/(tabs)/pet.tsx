@@ -1,11 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Text,
   StyleSheet,
   View,
   Pressable,
-  Image,
   ImageSourcePropType,
+  Animated,
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -40,7 +40,83 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
   adult: require("../../assets/cat-grown.png"),
 };
 
-const CAT_IMAGE_SIZE = 240;
+const CAT_SIZE = 240;
+const PX = 4; // pixel art unit size
+
+// 7 × 6 red pixel heart
+const HEART_MAP = [
+  [0, 1, 1, 0, 1, 1, 0],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [0, 1, 1, 1, 1, 1, 0],
+  [0, 0, 1, 1, 1, 0, 0],
+  [0, 0, 0, 1, 0, 0, 0],
+];
+
+// 5 × 5 gold sparkle (diamond cross)
+const STAR_MAP = [
+  [0, 0, 1, 0, 0],
+  [0, 1, 1, 1, 0],
+  [1, 1, 1, 1, 1],
+  [0, 1, 1, 1, 0],
+  [0, 0, 1, 0, 0],
+];
+
+function PixelHeart() {
+  return (
+    <View>
+      {HEART_MAP.map((row, ri) => (
+        <View key={ri} style={{ flexDirection: "row" }}>
+          {row.map((cell, ci) => (
+            <View
+              key={ci}
+              style={{
+                width: PX,
+                height: PX,
+                backgroundColor: cell ? "#FF3B5C" : "transparent",
+              }}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function PixelStar() {
+  return (
+    <View>
+      {STAR_MAP.map((row, ri) => (
+        <View key={ri} style={{ flexDirection: "row" }}>
+          {row.map((cell, ci) => (
+            <View
+              key={ci}
+              style={{
+                width: PX,
+                height: PX,
+                backgroundColor: cell ? "#FFD700" : "transparent",
+              }}
+            />
+          ))}
+        </View>
+      ))}
+    </View>
+  );
+}
+
+type FloatingHeart = {
+  id: number;
+  x: number;
+  translateY: Animated.Value;
+  opacity: Animated.Value;
+};
+
+type FloatingSparkle = {
+  id: number;
+  translateX: Animated.Value;
+  translateY: Animated.Value;
+  opacity: Animated.Value;
+};
 
 export default function PetScreen() {
   const insets = useSafeAreaInsets();
@@ -48,22 +124,215 @@ export default function PetScreen() {
   const [stage, setStage] = useState<CatStage>("baby");
   const [xp, setXp] = useState(35);
   const [mood] = useState("happy");
+  const [hearts, setHearts] = useState<FloatingHeart[]>([]);
+  const [sparkles, setSparkles] = useState<FloatingSparkle[]>([]);
+  const [isEvolving, setIsEvolving] = useState(false);
+
+  const heartId = useRef(0);
+  const sparkleId = useRef(0);
+  const blinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Animated values
+  const floatAnim = useRef(new Animated.Value(0)).current;
+  const catScale = useRef(new Animated.Value(1)).current;
+  const catOpacity = useRef(new Animated.Value(1)).current;
+  const evolveFlash = useRef(new Animated.Value(0)).current;
+
+  // Idle float loop (gentle up-down bob)
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(floatAnim, {
+          toValue: -10,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(floatAnim, {
+          toValue: 0,
+          duration: 1800,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    loop.start();
+    return () => loop.stop();
+  }, []);
+
+  // Periodic blink (brief opacity dip every 3-5.5s)
+  useEffect(() => {
+    const schedule = () => {
+      blinkTimer.current = setTimeout(() => {
+        Animated.sequence([
+          Animated.timing(catOpacity, {
+            toValue: 0.5,
+            duration: 70,
+            useNativeDriver: true,
+          }),
+          Animated.timing(catOpacity, {
+            toValue: 1,
+            duration: 70,
+            useNativeDriver: true,
+          }),
+        ]).start(() => schedule());
+      }, 3000 + Math.random() * 2500);
+    };
+    schedule();
+    return () => {
+      if (blinkTimer.current) clearTimeout(blinkTimer.current);
+    };
+  }, []);
+
+  const spawnHeart = () => {
+    const id = heartId.current++;
+    const x = (Math.random() - 0.5) * 100;
+    const translateY = new Animated.Value(0);
+    const opacity = new Animated.Value(1);
+    setHearts((p) => [...p, { id, x, translateY, opacity }]);
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: -90,
+        duration: 1200,
+        useNativeDriver: true,
+      }),
+      Animated.sequence([
+        Animated.delay(700),
+        Animated.timing(opacity, {
+          toValue: 0,
+          duration: 500,
+          useNativeDriver: true,
+        }),
+      ]),
+    ]).start(() => setHearts((p) => p.filter((h) => h.id !== id)));
+  };
+
+  const spawnSparkles = () => {
+    // 8 directions radiating outward
+    const dirs = [
+      { tx: 0, ty: -105 },
+      { tx: 74, ty: -74 },
+      { tx: 105, ty: 0 },
+      { tx: 74, ty: 74 },
+      { tx: 0, ty: 105 },
+      { tx: -74, ty: 74 },
+      { tx: -105, ty: 0 },
+      { tx: -74, ty: -74 },
+    ];
+    dirs.forEach(({ tx, ty }, i) => {
+      setTimeout(() => {
+        const id = sparkleId.current++;
+        const translateX = new Animated.Value(0);
+        const translateY = new Animated.Value(0);
+        const opacity = new Animated.Value(1);
+        setSparkles((p) => [...p, { id, translateX, translateY, opacity }]);
+        Animated.parallel([
+          Animated.timing(translateX, {
+            toValue: tx,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.timing(translateY, {
+            toValue: ty,
+            duration: 700,
+            useNativeDriver: true,
+          }),
+          Animated.sequence([
+            Animated.delay(300),
+            Animated.timing(opacity, {
+              toValue: 0,
+              duration: 400,
+              useNativeDriver: true,
+            }),
+          ]),
+        ]).start(() => setSparkles((p) => p.filter((s) => s.id !== id)));
+      }, i * 40);
+    });
+  };
 
   const handlePetCat = () => {
+    if (isEvolving) return;
     setXp((prev) => Math.min(prev + 5, 100));
+    // Spawn 2-3 hearts staggered
+    const count = 2 + Math.floor(Math.random() * 2);
+    for (let i = 0; i < count; i++) setTimeout(spawnHeart, i * 180);
+    // Quick bounce
+    Animated.sequence([
+      Animated.timing(catScale, {
+        toValue: 1.1,
+        duration: 100,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
   };
 
   const handleGrow = () => {
-    const currentIndex = stages.indexOf(stage);
-    if (currentIndex < stages.length - 1) {
-      setStage(stages[currentIndex + 1]);
-      setXp(0);
-    }
+    if (isEvolving) return;
+    setIsEvolving(true);
+    spawnSparkles();
+    // Power-up: escalating pulses → golden flash → settle → stage change
+    Animated.sequence([
+      Animated.timing(catScale, {
+        toValue: 1.12,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 0.94,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 1.2,
+        duration: 130,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 0.94,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 1.3,
+        duration: 160,
+        useNativeDriver: true,
+      }),
+      Animated.timing(evolveFlash, {
+        toValue: 0.85,
+        duration: 120,
+        useNativeDriver: true,
+      }),
+      Animated.timing(evolveFlash, {
+        toValue: 0,
+        duration: 450,
+        useNativeDriver: true,
+      }),
+      Animated.timing(catScale, {
+        toValue: 1,
+        duration: 380,
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      const idx = stages.indexOf(stage);
+      if (idx < stages.length - 1) {
+        setStage(stages[idx + 1]);
+        setXp(0);
+      }
+      setIsEvolving(false);
+    });
   };
 
   const level = stages.indexOf(stage) + 1;
   const canEvolve = stage !== "adult" && xp >= xpThresholds[stage];
   const xpPercent = Math.min((xp / 100) * 100, 100);
+
+  // Particle anchor positions within catWrap
+  const heartCenterX = CAT_SIZE / 2 - PX * 3.5; // center 7-col heart
+  const sparkCenterX = CAT_SIZE / 2 - PX * 2.5; // center 5-col star
+  const sparkCenterY = CAT_SIZE / 2 - PX * 2.5;
 
   return (
     <LinearGradient
@@ -96,12 +365,60 @@ export default function PetScreen() {
 
         {/* ── Pet display ── */}
         <View style={styles.main}>
-          <Pressable onPress={handlePetCat} style={styles.catImageWrap}>
-            <Image
+          <Pressable onPress={handlePetCat} style={styles.catWrap}>
+            {/* Cat image (renders first = behind particles) */}
+            <Animated.Image
               source={catImages[stage]}
-              style={styles.catImage}
+              style={[
+                styles.catImage,
+                {
+                  opacity: catOpacity,
+                  transform: [{ translateY: floatAnim }, { scale: catScale }],
+                },
+              ]}
               resizeMode="contain"
             />
+
+            {/* Floating red hearts (petting) */}
+            {hearts.map((h) => (
+              <Animated.View
+                key={h.id}
+                pointerEvents="none"
+                style={[
+                  styles.particle,
+                  {
+                    left: heartCenterX + h.x,
+                    top: CAT_SIZE * 0.45,
+                    transform: [{ translateY: h.translateY }],
+                    opacity: h.opacity,
+                  },
+                ]}
+              >
+                <PixelHeart />
+              </Animated.View>
+            ))}
+
+            {/* Gold sparkles (evolve) */}
+            {sparkles.map((s) => (
+              <Animated.View
+                key={s.id}
+                pointerEvents="none"
+                style={[
+                  styles.particle,
+                  {
+                    left: sparkCenterX,
+                    top: sparkCenterY,
+                    transform: [
+                      { translateX: s.translateX },
+                      { translateY: s.translateY },
+                    ],
+                    opacity: s.opacity,
+                  },
+                ]}
+              >
+                <PixelStar />
+              </Animated.View>
+            ))}
           </Pressable>
 
           {/* Stage chip */}
@@ -160,6 +477,15 @@ export default function PetScreen() {
           </Pressable>
         )}
       </View>
+
+      {/* Golden flash overlay for evolve */}
+      <Animated.View
+        pointerEvents="none"
+        style={[
+          StyleSheet.absoluteFillObject,
+          { backgroundColor: "#FFD700", opacity: evolveFlash },
+        ]}
+      />
     </LinearGradient>
   );
 }
@@ -216,15 +542,18 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 10,
   },
-  catImageWrap: {
-    width: CAT_IMAGE_SIZE,
-    height: CAT_IMAGE_SIZE,
+  catWrap: {
+    width: CAT_SIZE,
+    height: CAT_SIZE,
     alignItems: "center",
     justifyContent: "center",
   },
   catImage: {
-    width: CAT_IMAGE_SIZE,
-    height: CAT_IMAGE_SIZE,
+    width: CAT_SIZE,
+    height: CAT_SIZE,
+  },
+  particle: {
+    position: "absolute",
   },
   stageChip: {
     paddingHorizontal: 14,
