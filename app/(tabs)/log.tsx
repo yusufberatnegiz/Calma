@@ -6,9 +6,60 @@ import { colors } from "../../src/theme/colors";
 
 type MoodValue = 1 | 3 | 5;
 
-const moodOptions: { value: MoodValue; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [
+function NeutralFaceIcon({ size = 24, color = "#000" }: { size?: number; color?: string }) {
+  const s = size / 24;
+  return (
+    <View style={{ width: size, height: size }}>
+      <View style={{
+        position: "absolute",
+        width: size,
+        height: size,
+        borderRadius: size / 2,
+        borderWidth: 2 * s,
+        borderColor: color,
+      }} />
+      <View style={{
+        position: "absolute",
+        width: 3 * s,
+        height: 3 * s,
+        borderRadius: 2 * s,
+        backgroundColor: color,
+        top: 8 * s,
+        left: 8 * s,
+      }} />
+      <View style={{
+        position: "absolute",
+        width: 3 * s,
+        height: 3 * s,
+        borderRadius: 2 * s,
+        backgroundColor: color,
+        top: 8 * s,
+        right: 8 * s,
+      }} />
+      <View style={{
+        position: "absolute",
+        height: 2 * s,
+        width: 10 * s,
+        backgroundColor: color,
+        borderRadius: 1 * s,
+        bottom: 7 * s,
+        left: 7 * s,
+      }} />
+    </View>
+  );
+}
+
+type MoodOption = {
+  value: MoodValue;
+  label: string;
+} & (
+  | { icon: keyof typeof Ionicons.glyphMap; CustomIcon?: never }
+  | { CustomIcon: React.ComponentType<{ size: number; color: string }>; icon?: never }
+);
+
+const moodOptions: MoodOption[] = [
   { value: 5, icon: "happy-outline", label: "Great" },
-  { value: 3, icon: "remove-outline", label: "Okay" },
+  { value: 3, CustomIcon: NeutralFaceIcon, label: "Okay" },
   { value: 1, icon: "sad-outline", label: "Rough" },
 ];
 
@@ -42,8 +93,8 @@ export default function LogScreen() {
           <Text style={styles.sectionTitle}>Day rating</Text>
           <View style={styles.moodRow}>
             {moodOptions.map((mood) => {
-              const Icon = Ionicons;
               const isSelected = dayRating === mood.value;
+              const iconColor = isSelected ? "#FFFFFF" : colors.textPrimary;
               return (
                 <Pressable
                   key={mood.value}
@@ -53,11 +104,11 @@ export default function LogScreen() {
                   ]}
                   onPress={() => setDayRating(mood.value)}
                 >
-                  <Icon
-                    name={mood.icon}
-                    size={24}
-                    color={isSelected ? "#FFFFFF" : colors.textPrimary}
-                  />
+                  {mood.CustomIcon ? (
+                    <mood.CustomIcon size={24} color={iconColor} />
+                  ) : (
+                    <Ionicons name={mood.icon} size={24} color={iconColor} />
+                  )}
                   <Text
                     style={[
                       styles.moodLabel,
