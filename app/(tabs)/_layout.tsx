@@ -1,8 +1,6 @@
 import React from "react";
-import { StyleSheet } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
-import { LinearGradient } from "expo-linear-gradient";
 import { colors } from "../../src/theme/colors";
 
 export default function TabsLayout() {
@@ -14,19 +12,10 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.accent,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
-          backgroundColor: "transparent",
+          backgroundColor: "#FFFFFF",
           borderTopColor: colors.borderSubtle,
           borderTopWidth: 1,
         },
-        tabBarBackground: () => (
-          <LinearGradient
-            colors={[colors.gradientTop, colors.gradientMid, colors.gradientBottom]}
-            locations={[0, 0.5, 1]}
-            start={{ x: 0, y: 0 }}
-            end={{ x: 1, y: 0 }}
-            style={StyleSheet.absoluteFill}
-          />
-        ),
         tabBarLabelStyle: {
           fontFamily: "Nunito_600SemiBold",
           fontSize: 11,
