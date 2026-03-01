@@ -12,36 +12,40 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/theme/colors";
 
-type CatStage = "baby" | "teen" | "adult";
+type CatStage = "baby" | "teen" | "elite" | "royal";
 
-const stages: CatStage[] = ["baby", "teen", "adult"];
+const stages: CatStage[] = ["baby", "teen", "elite", "royal"];
 
 const stageLabels: Record<CatStage, string> = {
   baby: "Kitten",
   teen: "Cat",
-  adult: "Royal Cat",
+  elite: "Elite Cat",
+  royal: "Royal Cat",
 };
 
 const stageEmoji: Record<CatStage, string> = {
   baby: "🐱",
   teen: "🐈",
-  adult: "👑",
+  elite: "🌟",
+  royal: "👑",
 };
 
 const xpThresholds: Record<CatStage, number> = {
   baby: 100,
-  teen: 100,
-  adult: Infinity,
+  teen: 250,
+  elite: 500,
+  royal: Infinity,
 };
 
 const catImages: Record<CatStage, ImageSourcePropType> = {
   baby: require("../../assets/cat-baby.png"),
   teen: require("../../assets/cat-idle.png"),
-  adult: require("../../assets/cat-grown.png"),
+  elite: require("../../assets/cat-elite.png"),
+  royal: require("../../assets/cat-grown.png"),
 };
 
 const CAT_SIZE = 240;
-const CAT_SIZE_ADULT = 280; // royal cat slightly bigger
+const CAT_SIZE_ROYAL = 280; // royal cat slightly bigger
 const PX = 4; // pixel art unit size
 
 // 7 × 6 red pixel heart
@@ -164,7 +168,7 @@ export default function PetScreen() {
   }, []);
 
   // Periodic blink every 3-5.5s
-  // Kitten: swaps to cat-blink.png for 150 ms
+  // Kitten: swaps to cat-blink.png for 150 ms (pre-rendered, no fade issue)
   // Other stages: brief opacity dip
   useEffect(() => {
     const schedule = () => {
@@ -222,7 +226,6 @@ export default function PetScreen() {
   };
 
   const spawnSparkles = () => {
-    // 8 directions radiating outward
     const dirs = [
       { tx: 0, ty: -105 },
       { tx: 74, ty: -74 },
@@ -266,11 +269,9 @@ export default function PetScreen() {
 
   const handlePetCat = () => {
     if (isEvolving) return;
-    setXp((prev) => Math.min(prev + 5, 100));
-    // Spawn 2-3 hearts staggered
+    setXp((prev) => Math.min(prev + 5, 500));
     const count = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) setTimeout(spawnHeart, i * 180);
-    // Quick bounce
     Animated.sequence([
       Animated.timing(catScale, {
         toValue: 1.1,
@@ -289,7 +290,6 @@ export default function PetScreen() {
     if (isEvolving) return;
     setIsEvolving(true);
     spawnSparkles();
-    // Power-up: escalating pulses → golden flash → settle → stage change
     Animated.sequence([
       Animated.timing(catScale, {
         toValue: 1.12,
@@ -342,14 +342,14 @@ export default function PetScreen() {
   };
 
   const level = stages.indexOf(stage) + 1;
-  const canEvolve = stage !== "adult" && xp >= xpThresholds[stage];
-  const xpPercent = Math.min((xp / 100) * 100, 100);
-
-  const catSize = stage === "adult" ? CAT_SIZE_ADULT : CAT_SIZE;
+  const canEvolve = stage !== "royal" && xp >= xpThresholds[stage];
+  const maxXp = xpThresholds[stage] === Infinity ? 500 : xpThresholds[stage];
+  const xpPercent = Math.min((xp / maxXp) * 100, 100);
+  const catSize = stage === "royal" ? CAT_SIZE_ROYAL : CAT_SIZE;
 
   // Particle anchor positions within catWrap
-  const heartCenterX = catSize / 2 - PX * 3.5; // center 7-col heart
-  const sparkCenterX = catSize / 2 - PX * 2.5; // center 5-col star
+  const heartCenterX = catSize / 2 - PX * 3.5;
+  const sparkCenterX = catSize / 2 - PX * 2.5;
   const sparkCenterY = catSize / 2 - PX * 2.5;
 
   return (
@@ -383,27 +383,35 @@ export default function PetScreen() {
 
         {/* ── Pet display ── */}
         <View style={styles.main}>
-          <Pressable onPress={handlePetCat} style={styles.catWrap}>
-            {/* Cat images — both pre-rendered so the blink swap is instant */}
+          <Pressable
+            onPress={handlePetCat}
+            style={[styles.catWrap, { width: catSize, height: catSize }]}
+          >
+            {/* Cat images — both pre-rendered so the kitten blink is instant */}
             <Animated.View
               style={{
-                width: CAT_SIZE,
-                height: CAT_SIZE,
+                width: catSize,
+                height: catSize,
                 transform: [{ translateY: floatAnim }, { scale: catScale }],
               }}
             >
               {/* Normal cat */}
               <Animated.Image
                 source={catImages[stage]}
-                style={[styles.catImage, { opacity: catOpacity }]}
+                style={[
+                  styles.catImage,
+                  { width: catSize, height: catSize, opacity: catOpacity },
+                ]}
                 resizeMode="contain"
               />
-              {/* Blink frame — sits on top, visible only while kitten is blinking */}
+              {/* Blink frame — visible only when kitten is blinking */}
               <Animated.Image
                 source={require("../../assets/cat-blink.png")}
                 style={[
                   styles.catImage,
                   {
+                    width: catSize,
+                    height: catSize,
                     position: "absolute",
                     opacity: isBlinking && stage === "baby" ? 1 : 0,
                   },
@@ -411,27 +419,6 @@ export default function PetScreen() {
                 resizeMode="contain"
               />
             </Animated.View>
-          <Pressable
-            onPress={handlePetCat}
-            style={[styles.catWrap, { width: catSize, height: catSize }]}
-          >
-            {/* Cat image (renders first = behind particles) */}
-            <Animated.Image
-              source={
-                isBlinking
-                  ? require("../../assets/cat-blink.png")
-                  : catImages[stage]
-              }
-              style={[
-                styles.catImage,
-                { width: catSize, height: catSize },
-                {
-                  opacity: catOpacity,
-                  transform: [{ translateY: floatAnim }, { scale: catScale }],
-                },
-              ]}
-              resizeMode="contain"
-            />
 
             {/* Floating red hearts (petting) */}
             {hearts.map((h) => (
@@ -488,7 +475,7 @@ export default function PetScreen() {
           <View style={styles.xpSection}>
             <View style={styles.xpRow}>
               <Text style={styles.xpMeta}>Level {level}</Text>
-              <Text style={styles.xpMeta}>{xp} / 100</Text>
+              <Text style={styles.xpMeta}>{xp} / {maxXp}</Text>
             </View>
             <View style={styles.xpBarBg}>
               <LinearGradient
@@ -597,14 +584,11 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   catWrap: {
-    width: CAT_SIZE,
-    height: CAT_SIZE,
     alignItems: "center",
     justifyContent: "center",
   },
   catImage: {
-    width: CAT_SIZE,
-    height: CAT_SIZE,
+    position: "absolute",
   },
   particle: {
     position: "absolute",
