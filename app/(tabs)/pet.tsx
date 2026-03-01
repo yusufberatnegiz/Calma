@@ -18,7 +18,7 @@ const stages: CatStage[] = ["baby", "teen", "elite", "royal"];
 
 const stageLabels: Record<CatStage, string> = {
   baby: "Kitten",
-  teen: "Cat",
+  teen: "Adult Cat",
   elite: "Elite Cat",
   royal: "Royal Cat",
 };
