@@ -127,10 +127,14 @@ export default function PetScreen() {
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const [sparkles, setSparkles] = useState<FloatingSparkle[]>([]);
   const [isEvolving, setIsEvolving] = useState(false);
+  const [isBlinking, setIsBlinking] = useState(false);
 
   const heartId = useRef(0);
   const sparkleId = useRef(0);
   const blinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const blinkCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const stageRef = useRef(stage);
+  useEffect(() => { stageRef.current = stage; }, [stage]);
 
   // Animated values
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -158,27 +162,38 @@ export default function PetScreen() {
     return () => loop.stop();
   }, []);
 
-  // Periodic blink (brief opacity dip every 3-5.5s)
+  // Periodic blink every 3-5.5s
+  // Kitten: swaps to cat-blink.png for 150 ms
+  // Other stages: brief opacity dip
   useEffect(() => {
     const schedule = () => {
       blinkTimer.current = setTimeout(() => {
-        Animated.sequence([
-          Animated.timing(catOpacity, {
-            toValue: 0.5,
-            duration: 70,
-            useNativeDriver: true,
-          }),
-          Animated.timing(catOpacity, {
-            toValue: 1,
-            duration: 70,
-            useNativeDriver: true,
-          }),
-        ]).start(() => schedule());
+        if (stageRef.current === "baby") {
+          setIsBlinking(true);
+          blinkCloseTimer.current = setTimeout(() => {
+            setIsBlinking(false);
+            schedule();
+          }, 150);
+        } else {
+          Animated.sequence([
+            Animated.timing(catOpacity, {
+              toValue: 0.5,
+              duration: 70,
+              useNativeDriver: true,
+            }),
+            Animated.timing(catOpacity, {
+              toValue: 1,
+              duration: 70,
+              useNativeDriver: true,
+            }),
+          ]).start(() => schedule());
+        }
       }, 3000 + Math.random() * 2500);
     };
     schedule();
     return () => {
       if (blinkTimer.current) clearTimeout(blinkTimer.current);
+      if (blinkCloseTimer.current) clearTimeout(blinkCloseTimer.current);
     };
   }, []);
 
@@ -368,7 +383,11 @@ export default function PetScreen() {
           <Pressable onPress={handlePetCat} style={styles.catWrap}>
             {/* Cat image (renders first = behind particles) */}
             <Animated.Image
-              source={catImages[stage]}
+              source={
+                isBlinking
+                  ? require("../../assets/cat-blink.png")
+                  : catImages[stage]
+              }
               style={[
                 styles.catImage,
                 {
