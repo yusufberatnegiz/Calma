@@ -117,10 +117,16 @@ export default function PanicScreen() {
             <View style={styles.intensityRow}>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                 const active = n <= intensity;
+                const strongPurples: Record<number, string> = {
+                  7: "#C084FC",
+                  8: "#A855F7",
+                  9: "#7C3AED",
+                  10: "#4C1D95",
+                };
                 let backgroundColor: string = colors.muted;
                 if (active && n <= 3) backgroundColor = colors.accent;
                 else if (active && n <= 6) backgroundColor = colors.textPrimary;
-                else if (active) backgroundColor = colors.textSecondary;
+                else if (active) backgroundColor = strongPurples[n];
 
                 return (
                   <Pressable
