@@ -146,20 +146,11 @@ export default function PanicScreen() {
               })}
             </View>
             <Text style={styles.intensityHint}>
-              {
-                {
-                  1:  "You're safe. Take a gentle breath.",
-                  2:  "You noticed it - that's already so brave.",
-                  3:  "You're doing great. Just breathe with me.",
-                  4:  "It's okay. You don't have to act on this.",
-                  5:  "You're not alone in this moment.",
-                  6:  "Stay with me. This will pass, I promise.",
-                  7:  "You're so strong for reaching out right now.",
-                  8:  "Keep breathing. You've made it through before.",
-                  9:  "This is temporary. I'm right here with you.",
-                  10: "You're safe. This feeling will crest and fade.",
-                }[intensity]
-              }
+              {intensity <= 3
+                ? "You're safe. Take a gentle breath."
+                : intensity <= 7
+                ? "It's okay. You don't have to act on this."
+                : "You're safe. This feeling will crest and fade."}
             </Text>
             <Pressable
               style={styles.primaryButton}
