@@ -149,7 +149,7 @@ export default function PanicScreen() {
               {
                 {
                   1:  "You're safe. Take a gentle breath.",
-                  2:  "You noticed it — that's already so brave.",
+                  2:  "You noticed it - that's already so brave.",
                   3:  "You're doing great. Just breathe with me.",
                   4:  "It's okay. You don't have to act on this.",
                   5:  "You're not alone in this moment.",
