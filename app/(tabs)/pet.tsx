@@ -45,6 +45,7 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
 };
 
 const CAT_SIZE = 240;
+const CAT_SIZE_ELITE = 260; // elite cat a little bigger
 const CAT_SIZE_ROYAL = 280; // royal cat slightly bigger
 const PX = 4; // pixel art unit size
 
@@ -345,7 +346,12 @@ export default function PetScreen() {
   const canEvolve = stage !== "royal" && xp >= xpThresholds[stage];
   const maxXp = xpThresholds[stage] === Infinity ? 500 : xpThresholds[stage];
   const xpPercent = Math.min((xp / maxXp) * 100, 100);
-  const catSize = stage === "royal" ? CAT_SIZE_ROYAL : CAT_SIZE;
+  const catSize =
+    stage === "royal"
+      ? CAT_SIZE_ROYAL
+      : stage === "elite"
+        ? CAT_SIZE_ELITE
+        : CAT_SIZE;
 
   // Particle anchor positions within catWrap
   const heartCenterX = catSize / 2 - PX * 3.5;
