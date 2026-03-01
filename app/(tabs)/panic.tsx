@@ -117,27 +117,28 @@ export default function PanicScreen() {
             <View style={styles.intensityRow}>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                 const active = n <= intensity;
-                const strongPurples: Record<number, string> = {
-                  7: "#C084FC",
-                  8: "#A855F7",
-                  9: "#7C3AED",
-                  10: "#4C1D95",
+                const purpleScale: Record<number, string> = {
+                  1:  "#DDD6FE",
+                  2:  "#C4B5FD",
+                  3:  "#A78BFA",
+                  4:  "#8B5CF6",
+                  5:  "#7C3AED",
+                  6:  "#6D28D9",
+                  7:  "#5B21B6",
+                  8:  "#4C1D95",
+                  9:  "#3B0764",
+                  10: "#2E1065",
                 };
-                let backgroundColor: string = colors.muted;
-                if (active && n <= 3) backgroundColor = colors.accent;
-                else if (active && n <= 6) backgroundColor = colors.textPrimary;
-                else if (active) backgroundColor = strongPurples[n];
+                const backgroundColor = active ? purpleScale[n] : "#E5E7EB";
+                const labelColor = active && n <= 2 ? "#6D28D9" : "#FFFFFF";
 
                 return (
                   <Pressable
                     key={n}
-                    style={[
-                      styles.intensityDot,
-                      active ? { backgroundColor } : { backgroundColor: "#E5E7EB" },
-                    ]}
+                    style={[styles.intensityDot, { backgroundColor }]}
                     onPress={() => setIntensity(n)}
                   >
-                    <Text style={[styles.intensityLabel, active && { color: "#FFFFFF" }]}>
+                    <Text style={[styles.intensityLabel, { color: labelColor }]}>
                       {n}
                     </Text>
                   </Pressable>
