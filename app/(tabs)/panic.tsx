@@ -146,8 +146,20 @@ export default function PanicScreen() {
               })}
             </View>
             <Text style={styles.intensityHint}>
-              {intensity <= 3 ? "Mild" : intensity <= 6 ? "Moderate" : "Strong"} — see if you can
-              stay with it for a moment.
+              {
+                {
+                  1:  "Just a whisper. You're fully in control.",
+                  2:  "A faint pull. Take a slow breath.",
+                  3:  "Mild urge. Notice it without acting.",
+                  4:  "Building up. Stay curious, not reactive.",
+                  5:  "Halfway there. This feeling will pass.",
+                  6:  "Noticeable. Ride the wave — don't fight it.",
+                  7:  "Strong pull. Ground your feet and breathe.",
+                  8:  "Intense. You are stronger than this moment.",
+                  9:  "Very intense. Hold on — the peak is near.",
+                  10: "Peak urge. It will crest and fade. Stay here.",
+                }[intensity]
+              }
             </Text>
             <Pressable
               style={styles.primaryButton}
