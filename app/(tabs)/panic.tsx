@@ -117,20 +117,9 @@ export default function PanicScreen() {
             <View style={styles.intensityRow}>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                 const active = n <= intensity;
-                const purpleScale: Record<number, string> = {
-                  1:  "#DDD6FE",
-                  2:  "#C4B5FD",
-                  3:  "#A78BFA",
-                  4:  "#8B5CF6",
-                  5:  "#7C3AED",
-                  6:  "#6D28D9",
-                  7:  "#5B21B6",
-                  8:  "#4C1D95",
-                  9:  "#3B0764",
-                  10: "#2E1065",
-                };
-                const backgroundColor = active ? purpleScale[n] : "#E5E7EB";
-                const labelColor = active && n <= 2 ? "#6D28D9" : "#FFFFFF";
+                const groupColor = n <= 3 ? "#C084FC" : n <= 7 ? "#7C3AED" : "#3B0764";
+                const backgroundColor = active ? groupColor : "#E5E7EB";
+                const labelColor = active && n <= 3 ? "#6D28D9" : "#FFFFFF";
 
                 return (
                   <Pressable
