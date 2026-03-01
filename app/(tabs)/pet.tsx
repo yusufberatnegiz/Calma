@@ -29,8 +29,8 @@ const stageEmoji: Record<CatStage, string> = {
 };
 
 const xpThresholds: Record<CatStage, number> = {
-  baby: 40,
-  teen: 80,
+  baby: 100,
+  teen: 100,
   adult: Infinity,
 };
 
@@ -41,6 +41,7 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
 };
 
 const CAT_SIZE = 240;
+const CAT_SIZE_ADULT = 280; // royal cat slightly bigger
 const PX = 4; // pixel art unit size
 
 // 7 × 6 red pixel heart
@@ -344,10 +345,12 @@ export default function PetScreen() {
   const canEvolve = stage !== "adult" && xp >= xpThresholds[stage];
   const xpPercent = Math.min((xp / 100) * 100, 100);
 
+  const catSize = stage === "adult" ? CAT_SIZE_ADULT : CAT_SIZE;
+
   // Particle anchor positions within catWrap
-  const heartCenterX = CAT_SIZE / 2 - PX * 3.5; // center 7-col heart
-  const sparkCenterX = CAT_SIZE / 2 - PX * 2.5; // center 5-col star
-  const sparkCenterY = CAT_SIZE / 2 - PX * 2.5;
+  const heartCenterX = catSize / 2 - PX * 3.5; // center 7-col heart
+  const sparkCenterX = catSize / 2 - PX * 2.5; // center 5-col star
+  const sparkCenterY = catSize / 2 - PX * 2.5;
 
   return (
     <LinearGradient
@@ -408,6 +411,27 @@ export default function PetScreen() {
                 resizeMode="contain"
               />
             </Animated.View>
+          <Pressable
+            onPress={handlePetCat}
+            style={[styles.catWrap, { width: catSize, height: catSize }]}
+          >
+            {/* Cat image (renders first = behind particles) */}
+            <Animated.Image
+              source={
+                isBlinking
+                  ? require("../../assets/cat-blink.png")
+                  : catImages[stage]
+              }
+              style={[
+                styles.catImage,
+                { width: catSize, height: catSize },
+                {
+                  opacity: catOpacity,
+                  transform: [{ translateY: floatAnim }, { scale: catScale }],
+                },
+              ]}
+              resizeMode="contain"
+            />
 
             {/* Floating red hearts (petting) */}
             {hearts.map((h) => (
@@ -418,7 +442,7 @@ export default function PetScreen() {
                   styles.particle,
                   {
                     left: heartCenterX + h.x,
-                    top: CAT_SIZE * 0.45,
+                    top: catSize * 0.45,
                     transform: [{ translateY: h.translateY }],
                     opacity: h.opacity,
                   },
@@ -485,7 +509,7 @@ export default function PetScreen() {
             <Text style={styles.statLabel}>Resisted</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="sparkles" size={18} color={colors.accent} />
+            <Ionicons name="checkmark-done-outline" size={18} color={colors.accent} />
             <Text style={styles.statValue}>5</Text>
             <Text style={styles.statLabel}>Tasks</Text>
           </View>
@@ -502,8 +526,8 @@ export default function PetScreen() {
             <Text style={styles.evolveButtonText}>✨ Evolve {petName}</Text>
           </Pressable>
         ) : (
-          <Pressable style={styles.petButton} onPress={handlePetCat}>
-            <Text style={styles.petButtonText}>🐾 Pet {petName}</Text>
+          <Pressable style={styles.customizeButton} onPress={() => {}}>
+            <Text style={styles.customizeButtonText}>✨ Customize</Text>
           </Pressable>
         )}
       </View>
@@ -671,7 +695,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.evolveGreenText,
   },
-  petButton: {
+  customizeButton: {
     alignSelf: "stretch",
     paddingVertical: 14,
     borderRadius: 999,
@@ -680,7 +704,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.borderSubtle,
   },
-  petButtonText: {
+  customizeButtonText: {
     fontFamily: "Nunito_700Bold",
     fontSize: 15,
     color: colors.accent,
