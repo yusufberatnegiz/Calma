@@ -383,6 +383,34 @@ export default function PetScreen() {
 
         {/* ── Pet display ── */}
         <View style={styles.main}>
+          <Pressable onPress={handlePetCat} style={styles.catWrap}>
+            {/* Cat images — both pre-rendered so the blink swap is instant */}
+            <Animated.View
+              style={{
+                width: CAT_SIZE,
+                height: CAT_SIZE,
+                transform: [{ translateY: floatAnim }, { scale: catScale }],
+              }}
+            >
+              {/* Normal cat */}
+              <Animated.Image
+                source={catImages[stage]}
+                style={[styles.catImage, { opacity: catOpacity }]}
+                resizeMode="contain"
+              />
+              {/* Blink frame — sits on top, visible only while kitten is blinking */}
+              <Animated.Image
+                source={require("../../assets/cat-blink.png")}
+                style={[
+                  styles.catImage,
+                  {
+                    position: "absolute",
+                    opacity: isBlinking && stage === "baby" ? 1 : 0,
+                  },
+                ]}
+                resizeMode="contain"
+              />
+            </Animated.View>
           <Pressable
             onPress={handlePetCat}
             style={[styles.catWrap, { width: catSize, height: catSize }]}
