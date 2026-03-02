@@ -13,22 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { Screen } from "../../src/components/Screen";
 import { colors } from "../../src/theme/colors";
+import { useTasks } from "../../src/state/taskStore";
+import { usePet } from "../../src/state/petStore";
+import { XP_AWARDS, getTodayKey } from "../../src/domain/rewards";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
+// Reduced confetti palette and count for a calmer feel
 const CONFETTI_COLORS = [
-  "#FF6B6B", "#FFE66D", "#4ECDC4", "#A8E6CF",
-  "#FFB347", "#C3A6FF", "#87CEEB", "#FF9EAA",
+  "#C3A6FF", "#A8E6CF", "#87CEEB", "#DDD6FE", "#FCD5CE",
 ];
-
-type Task = {
-  id: string;
-  title: string;
-  description: string;
-  xpReward: number;
-  completed: boolean;
-  isCustom?: boolean;
-};
 
 type ConfettiPiece = {
   id: number;
@@ -40,80 +34,61 @@ type ConfettiPiece = {
   size: number;
 };
 
-const initialTasks: Task[] = [
-  {
-    id: "1",
-    title: "Delay a compulsion for 2 min",
-    description: "When you feel the urge, wait just 2 minutes before acting.",
-    xpReward: 15,
-    completed: false,
-  },
-  {
-    id: "2",
-    title: "Name your feeling",
-    description: "When anxiety rises, say out loud what you're noticing.",
-    xpReward: 10,
-    completed: false,
-  },
-  {
-    id: "3",
-    title: "5 deep breaths",
-    description: "Take 5 slow, deep breaths. In through the nose, out through the mouth.",
-    xpReward: 10,
-    completed: false,
-  },
-  {
-    id: "4",
-    title: "Touch something cold",
-    description: "Hold ice or cold water for 30 seconds to ground yourself.",
-    xpReward: 10,
-    completed: false,
-  },
-];
-
 export default function TasksScreen() {
-  const [tasks, setTasks] = useState<Task[]>(initialTasks);
+  const today = getTodayKey();
+  const { tasks, storeReady, bonusAwardedDate, dispatch: taskDispatch } = useTasks();
+  const { dispatch: petDispatch } = usePet();
+
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
-  const bonusGivenRef = useRef(false);
   const confettiId = useRef(0);
 
-  const completedCount = tasks.filter((t) => t.completed).length;
-  const allDone = tasks.length > 0 && completedCount === tasks.length;
-  const completionPercent = tasks.length
-    ? Math.round((completedCount / tasks.length) * 100)
+  // Ensure default daily tasks exist only after the store has loaded from storage
+  useEffect(() => {
+    if (!storeReady) return;
+    taskDispatch({ type: "ENSURE_DAILY", dateKey: today });
+  }, [storeReady, today]);
+
+  // Today's tasks only
+  const todayTasks = tasks.filter((t) => t.dateKey === today);
+  const completedCount = todayTasks.filter((t) => t.isCompleted).length;
+  const allDone = todayTasks.length > 0 && completedCount === todayTasks.length;
+  const completionPercent = todayTasks.length
+    ? Math.round((completedCount / todayTasks.length) * 100)
     : 0;
   const earnedXp =
-    tasks.filter((t) => t.completed).reduce((s, t) => s + t.xpReward, 0) +
-    (allDone ? 30 : 0);
+    todayTasks.filter((t) => t.isCompleted).reduce((s, t) => s + t.xp, 0) +
+    (bonusAwardedDate === today ? XP_AWARDS.task_all_bonus : 0);
 
+  // Toned-down confetti: 20 pieces instead of 60
   const launchConfetti = () => {
-    const PIECES = 60;
+    const PIECES = 20;
     const newPieces: ConfettiPiece[] = [];
 
     for (let i = 0; i < PIECES; i++) {
       const id = confettiId.current++;
       const startX = Math.random() * SCREEN_WIDTH;
       const x = new Animated.Value(startX);
-      const y = new Animated.Value(-30);
+      const y = new Animated.Value(-20);
       const rotate = new Animated.Value(0);
       const opacity = new Animated.Value(1);
-      const color = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
-      const size = 7 + Math.random() * 9;
-      const delay = Math.random() * 700;
-      const duration = 2200 + Math.random() * 1200;
+      const color =
+        CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+      const size = 6 + Math.random() * 6;
+      const delay = Math.random() * 400;
+      const duration = 1800 + Math.random() * 800;
 
       newPieces.push({ id, x, y, rotate, opacity, color, size });
 
       setTimeout(() => {
         Animated.parallel([
           Animated.timing(y, {
-            toValue: SCREEN_HEIGHT + 50,
+            toValue: SCREEN_HEIGHT * 0.6,
             duration,
             useNativeDriver: true,
           }),
           Animated.timing(x, {
-            toValue: startX + (Math.random() - 0.5) * 180,
+            toValue: startX + (Math.random() - 0.5) * 120,
             duration,
             useNativeDriver: true,
           }),
@@ -123,10 +98,10 @@ export default function TasksScreen() {
             useNativeDriver: true,
           }),
           Animated.sequence([
-            Animated.delay(duration * 0.65),
+            Animated.delay(duration * 0.6),
             Animated.timing(opacity, {
               toValue: 0,
-              duration: duration * 0.35,
+              duration: duration * 0.4,
               useNativeDriver: true,
             }),
           ]),
@@ -139,40 +114,45 @@ export default function TasksScreen() {
     setConfettiPieces((prev) => [...prev, ...newPieces]);
   };
 
-  // Trigger confetti + bonus when every task is ticked
-  useEffect(() => {
-    const allCompleted = tasks.length > 0 && tasks.every((t) => t.completed);
-    if (allCompleted && !bonusGivenRef.current) {
-      bonusGivenRef.current = true;
-      launchConfetti();
+  const handleToggleTask = (taskId: string, taskXp: number, isCompleted: boolean) => {
+    taskDispatch({ type: "TOGGLE_TASK", id: taskId });
+
+    if (!isCompleted) {
+      // Task is being completed (not un-completed)
+      petDispatch({ type: "ADD_XP", amount: taskXp });
+      petDispatch({ type: "RECORD_TASK_COMPLETED" });
+      petDispatch({ type: "MARK_ACTIVITY", dateKey: today });
+
+      // Check if this completes all tasks and bonus hasn't been awarded today
+      const remainingAfter = todayTasks.filter(
+        (t) => !t.isCompleted && t.id !== taskId
+      );
+      if (remainingAfter.length === 0 && bonusAwardedDate !== today) {
+        taskDispatch({ type: "SET_BONUS_DATE", dateKey: today });
+        petDispatch({ type: "ADD_XP", amount: XP_AWARDS.task_all_bonus });
+        launchConfetti();
+      }
     }
-    if (!allCompleted) {
-      bonusGivenRef.current = false;
-    }
-  }, [tasks]);
+  };
 
-  const toggleTask = (id: string) =>
-    setTasks((prev) =>
-      prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
-    );
+  const handleDeleteTask = (id: string) =>
+    taskDispatch({ type: "DELETE_TASK", id });
 
-  const deleteTask = (id: string) =>
-    setTasks((prev) => prev.filter((t) => t.id !== id));
-
-  const addTask = () => {
+  const handleAddTask = () => {
     const title = newTaskTitle.trim();
     if (!title) return;
-    setTasks((prev) => [
-      ...prev,
-      {
-        id: Date.now().toString(),
+    taskDispatch({
+      type: "ADD_CUSTOM",
+      task: {
+        id: `${today}_custom_${Date.now()}`,
         title,
         description: "",
-        xpReward: 10,
-        completed: false,
+        xp: 10,
+        isCompleted: false,
+        dateKey: today,
         isCustom: true,
       },
-    ]);
+    });
     setNewTaskTitle("");
   };
 
@@ -199,7 +179,7 @@ export default function TasksScreen() {
             <View style={styles.progressBody}>
               <View style={styles.progressTitleRow}>
                 <Text style={styles.progressTitle}>
-                  {completedCount}/{tasks.length} completed
+                  {completedCount}/{todayTasks.length} completed
                 </Text>
                 {earnedXp > 0 && (
                   <Text style={styles.xpEarned}>+{earnedXp} XP</Text>
@@ -207,7 +187,10 @@ export default function TasksScreen() {
               </View>
               <View style={styles.progressBarBackground}>
                 <View
-                  style={[styles.progressBarFill, { width: `${completionPercent}%` }]}
+                  style={[
+                    styles.progressBarFill,
+                    { width: `${completionPercent}%` },
+                  ]}
                 />
               </View>
             </View>
@@ -217,27 +200,34 @@ export default function TasksScreen() {
           {allDone && (
             <View style={styles.bonusBanner}>
               <Text style={styles.bonusBannerText}>
-                🎉 All done! +30 bonus XP earned!
+                🎉 All done! +{XP_AWARDS.task_all_bonus} bonus XP earned!
               </Text>
             </View>
           )}
 
           {/* Task list */}
           <View style={styles.tasksList}>
-            {tasks.map((task) => (
+            {todayTasks.map((task) => (
               <View
                 key={task.id}
-                style={[styles.taskCard, task.completed && styles.taskCardCompleted]}
+                style={[
+                  styles.taskCard,
+                  task.isCompleted && styles.taskCardCompleted,
+                ]}
               >
-                {/* Tappable main area */}
                 <Pressable
-                  onPress={() => toggleTask(task.id)}
+                  onPress={() =>
+                    handleToggleTask(task.id, task.xp, task.isCompleted)
+                  }
                   style={styles.taskCardInner}
                 >
                   <View
-                    style={[styles.checkbox, task.completed && styles.checkboxChecked]}
+                    style={[
+                      styles.checkbox,
+                      task.isCompleted && styles.checkboxChecked,
+                    ]}
                   >
-                    {task.completed && (
+                    {task.isCompleted && (
                       <Ionicons name="checkmark" size={14} color="#FFFFFF" />
                     )}
                   </View>
@@ -245,21 +235,22 @@ export default function TasksScreen() {
                     <Text
                       style={[
                         styles.taskTitle,
-                        task.completed && styles.taskTitleCompleted,
+                        task.isCompleted && styles.taskTitleCompleted,
                       ]}
                     >
                       {task.title}
                     </Text>
                     {!!task.description && (
-                      <Text style={styles.taskDescription}>{task.description}</Text>
+                      <Text style={styles.taskDescription}>
+                        {task.description}
+                      </Text>
                     )}
                   </View>
-                  <Text style={styles.taskXp}>+{task.xpReward} XP</Text>
+                  <Text style={styles.taskXp}>+{task.xp} XP</Text>
                 </Pressable>
 
-                {/* Delete button */}
                 <Pressable
-                  onPress={() => deleteTask(task.id)}
+                  onPress={() => handleDeleteTask(task.id)}
                   style={styles.deleteButton}
                   hitSlop={8}
                 >
@@ -277,12 +268,12 @@ export default function TasksScreen() {
               onChangeText={setNewTaskTitle}
               placeholder="Add your own task…"
               placeholderTextColor={colors.textSecondary}
-              onSubmitEditing={addTask}
+              onSubmitEditing={handleAddTask}
               returnKeyType="done"
               maxLength={80}
             />
             <Pressable
-              onPress={addTask}
+              onPress={handleAddTask}
               style={[
                 styles.addTaskButton,
                 !newTaskTitle.trim() && styles.addTaskButtonDisabled,
@@ -294,7 +285,7 @@ export default function TasksScreen() {
         </ScrollView>
       </Screen>
 
-      {/* Confetti overlay — rendered above everything, no touch events */}
+      {/* Confetti overlay — no touch events */}
       <View pointerEvents="none" style={StyleSheet.absoluteFillObject}>
         {confettiPieces.map((piece) => (
           <Animated.View
@@ -311,7 +302,7 @@ export default function TasksScreen() {
                 {
                   rotate: piece.rotate.interpolate({
                     inputRange: [0, 1],
-                    outputRange: ["0deg", "720deg"],
+                    outputRange: ["0deg", "360deg"],
                   }),
                 },
               ],
@@ -330,17 +321,16 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   title: {
+    fontFamily: "Nunito_800ExtraBold",
     fontSize: 20,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   subtitle: {
+    fontFamily: "Nunito_400Regular",
     marginTop: 4,
     fontSize: 14,
     color: colors.textSecondary,
   },
-
-  // Progress
   progressCard: {
     marginTop: 4,
     flexDirection: "row",
@@ -371,13 +361,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   progressTitle: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 14,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   xpEarned: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 13,
-    fontWeight: "700",
     color: colors.accent,
   },
   progressBarBackground: {
@@ -392,8 +382,6 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.accent,
   },
-
-  // Bonus banner
   bonusBanner: {
     backgroundColor: "#FFF7ED",
     borderRadius: 14,
@@ -404,12 +392,10 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   bonusBannerText: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 14,
-    fontWeight: "700",
     color: "#C2410C",
   },
-
-  // Task list
   tasksList: {
     gap: 10,
   },
@@ -453,8 +439,8 @@ const styles = StyleSheet.create({
     gap: 3,
   },
   taskTitle: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 14,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   taskTitleCompleted: {
@@ -462,12 +448,13 @@ const styles = StyleSheet.create({
     textDecorationLine: "line-through",
   },
   taskDescription: {
+    fontFamily: "Nunito_400Regular",
     fontSize: 12,
     color: colors.textSecondary,
   },
   taskXp: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 11,
-    fontWeight: "700",
     color: colors.accent,
     marginTop: 2,
   },
@@ -477,14 +464,13 @@ const styles = StyleSheet.create({
     alignSelf: "stretch",
     justifyContent: "center",
   },
-
-  // Add task
   addTaskRow: {
     flexDirection: "row",
     gap: 10,
     alignItems: "center",
   },
   addTaskInput: {
+    fontFamily: "Nunito_400Regular",
     flex: 1,
     height: 48,
     borderRadius: 14,

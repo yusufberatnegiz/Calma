@@ -11,8 +11,8 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/theme/colors";
-
-type CatStage = "baby" | "teen" | "elite" | "royal";
+import { usePet } from "../../src/state/petStore";
+import { XP_THRESHOLDS, CatStage } from "../../src/domain/rewards";
 
 const stages: CatStage[] = ["baby", "teen", "elite", "royal"];
 
@@ -30,13 +30,6 @@ const stageEmoji: Record<CatStage, string> = {
   royal: "👑",
 };
 
-const xpThresholds: Record<CatStage, number> = {
-  baby: 100,
-  teen: 250,
-  elite: 500,
-  royal: Infinity,
-};
-
 const catImages: Record<CatStage, ImageSourcePropType> = {
   baby: require("../../assets/cat-baby.png"),
   teen: require("../../assets/cat-idle.png"),
@@ -45,8 +38,8 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
 };
 
 const CAT_SIZE = 240;
-const CAT_SIZE_ELITE = 260; // elite cat a little bigger
-const CAT_SIZE_ROYAL = 280; // royal cat slightly bigger
+const CAT_SIZE_ELITE = 260;
+const CAT_SIZE_ROYAL = 280;
 const PX = 4; // pixel art unit size
 
 // 7 × 6 red pixel heart
@@ -126,10 +119,8 @@ type FloatingSparkle = {
 
 export default function PetScreen() {
   const insets = useSafeAreaInsets();
-  const [petName] = useState("Mochi");
-  const [stage, setStage] = useState<CatStage>("baby");
-  const [xp, setXp] = useState(35);
-  const [mood] = useState("happy");
+  const { pet, dispatch } = usePet();
+
   const [hearts, setHearts] = useState<FloatingHeart[]>([]);
   const [sparkles, setSparkles] = useState<FloatingSparkle[]>([]);
   const [isEvolving, setIsEvolving] = useState(false);
@@ -139,8 +130,10 @@ export default function PetScreen() {
   const sparkleId = useRef(0);
   const blinkTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const blinkCloseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const stageRef = useRef(stage);
-  useEffect(() => { stageRef.current = stage; }, [stage]);
+  const stageRef = useRef(pet.stage);
+  useEffect(() => {
+    stageRef.current = pet.stage;
+  }, [pet.stage]);
 
   // Animated values
   const floatAnim = useRef(new Animated.Value(0)).current;
@@ -148,7 +141,7 @@ export default function PetScreen() {
   const catOpacity = useRef(new Animated.Value(1)).current;
   const evolveFlash = useRef(new Animated.Value(0)).current;
 
-  // Idle float loop (gentle up-down bob)
+  // Idle float loop
   useEffect(() => {
     const loop = Animated.loop(
       Animated.sequence([
@@ -168,9 +161,7 @@ export default function PetScreen() {
     return () => loop.stop();
   }, []);
 
-  // Periodic blink every 3-5.5s
-  // Kitten: swaps to cat-blink.png for 150 ms (pre-rendered, no fade issue)
-  // Other stages: brief opacity dip
+  // Periodic blink every 3–5.5 s
   useEffect(() => {
     const schedule = () => {
       blinkTimer.current = setTimeout(() => {
@@ -268,9 +259,9 @@ export default function PetScreen() {
     });
   };
 
+  // Tap: animation only — NO XP awarded from petting
   const handlePetCat = () => {
     if (isEvolving) return;
-    setXp((prev) => Math.min(prev + 5, 500));
     const count = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) setTimeout(spawnHeart, i * 180);
     Animated.sequence([
@@ -288,7 +279,7 @@ export default function PetScreen() {
   };
 
   const handleGrow = () => {
-    if (isEvolving) return;
+    if (isEvolving || pet.stage === "royal") return;
     setIsEvolving(true);
     spawnSparkles();
     Animated.sequence([
@@ -333,18 +324,15 @@ export default function PetScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      const idx = stages.indexOf(stage);
-      if (idx < stages.length - 1) {
-        setStage(stages[idx + 1]);
-        setXp(0);
-      }
+      dispatch({ type: "EVOLVE" });
       setIsEvolving(false);
     });
   };
 
+  const { stage, xp, name, totalResists, tasksCompleted, streak } = pet;
   const level = stages.indexOf(stage) + 1;
-  const canEvolve = stage !== "royal" && xp >= xpThresholds[stage];
-  const maxXp = xpThresholds[stage] === Infinity ? 500 : xpThresholds[stage];
+  const canEvolve = stage !== "royal" && xp >= XP_THRESHOLDS[stage];
+  const maxXp = XP_THRESHOLDS[stage] === Infinity ? 500 : XP_THRESHOLDS[stage];
   const xpPercent = Math.min((xp / maxXp) * 100, 100);
   const catSize =
     stage === "royal"
@@ -353,7 +341,6 @@ export default function PetScreen() {
         ? CAT_SIZE_ELITE
         : CAT_SIZE;
 
-  // Particle anchor positions within catWrap
   const heartCenterX = catSize / 2 - PX * 3.5;
   const sparkCenterX = catSize / 2 - PX * 2.5;
   const sparkCenterY = catSize / 2 - PX * 2.5;
@@ -373,13 +360,11 @@ export default function PetScreen() {
           },
         ]}
       >
-        {/* ── Header ── */}
+        {/* Header */}
         <View style={styles.header}>
           <View>
             <Text style={styles.greeting}>Hello! 👋</Text>
-            <Text style={styles.mood}>
-              {petName} is feeling {mood}
-            </Text>
+            <Text style={styles.mood}>{name} is here with you</Text>
           </View>
           <View style={styles.xpBadge}>
             <Ionicons name="star" size={13} color={colors.accent} />
@@ -387,13 +372,12 @@ export default function PetScreen() {
           </View>
         </View>
 
-        {/* ── Pet display ── */}
+        {/* Pet display */}
         <View style={styles.main}>
           <Pressable
             onPress={handlePetCat}
             style={[styles.catWrap, { width: catSize, height: catSize }]}
           >
-            {/* Cat images — both pre-rendered so the kitten blink is instant */}
             <Animated.View
               style={{
                 width: catSize,
@@ -401,7 +385,6 @@ export default function PetScreen() {
                 transform: [{ translateY: floatAnim }, { scale: catScale }],
               }}
             >
-              {/* Normal cat */}
               <Animated.Image
                 source={catImages[stage]}
                 style={[
@@ -410,7 +393,6 @@ export default function PetScreen() {
                 ]}
                 resizeMode="contain"
               />
-              {/* Blink frame — visible only when kitten is blinking */}
               <Animated.Image
                 source={require("../../assets/cat-blink.png")}
                 style={[
@@ -426,7 +408,7 @@ export default function PetScreen() {
               />
             </Animated.View>
 
-            {/* Floating red hearts (petting) */}
+            {/* Floating hearts (petting animation) */}
             {hearts.map((h) => (
               <Animated.View
                 key={h.id}
@@ -445,7 +427,7 @@ export default function PetScreen() {
               </Animated.View>
             ))}
 
-            {/* Gold sparkles (evolve) */}
+            {/* Gold sparkles (evolve animation) */}
             {sparkles.map((s) => (
               <Animated.View
                 key={s.id}
@@ -475,13 +457,15 @@ export default function PetScreen() {
             </Text>
           </View>
 
-          <Text style={styles.petName}>{petName}</Text>
+          <Text style={styles.petName}>{name}</Text>
 
           {/* XP bar */}
           <View style={styles.xpSection}>
             <View style={styles.xpRow}>
               <Text style={styles.xpMeta}>Level {level}</Text>
-              <Text style={styles.xpMeta}>{xp} / {maxXp}</Text>
+              <Text style={styles.xpMeta}>
+                {xp} / {maxXp}
+              </Text>
             </View>
             <View style={styles.xpBarBg}>
               <LinearGradient
@@ -494,29 +478,33 @@ export default function PetScreen() {
           </View>
         </View>
 
-        {/* ── Stats row ── */}
+        {/* Stats row — derived from real store data */}
         <View style={styles.statsRow}>
           <View style={styles.statCard}>
             <Ionicons name="heart" size={18} color="#F472B6" />
-            <Text style={styles.statValue}>3</Text>
+            <Text style={styles.statValue}>{totalResists}</Text>
             <Text style={styles.statLabel}>Resisted</Text>
           </View>
           <View style={styles.statCard}>
-            <Ionicons name="checkmark-done-outline" size={18} color={colors.accent} />
-            <Text style={styles.statValue}>5</Text>
+            <Ionicons
+              name="checkmark-done-outline"
+              size={18}
+              color={colors.accent}
+            />
+            <Text style={styles.statValue}>{tasksCompleted}</Text>
             <Text style={styles.statLabel}>Tasks</Text>
           </View>
           <View style={styles.statCard}>
             <Ionicons name="flame" size={18} color="#FB923C" />
-            <Text style={styles.statValue}>7</Text>
+            <Text style={styles.statValue}>{streak}</Text>
             <Text style={styles.statLabel}>Day Streak</Text>
           </View>
         </View>
 
-        {/* ── Action button ── */}
+        {/* Action button */}
         {canEvolve ? (
           <Pressable style={styles.evolveButton} onPress={handleGrow}>
-            <Text style={styles.evolveButtonText}>✨ Evolve {petName}</Text>
+            <Text style={styles.evolveButtonText}>✨ Evolve {name}</Text>
           </Pressable>
         ) : (
           <Pressable style={styles.customizeButton} onPress={() => {}}>
@@ -546,8 +534,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 22,
     gap: 20,
   },
-
-  // Header
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -581,8 +567,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: colors.accent,
   },
-
-  // Main pet area
   main: {
     flex: 1,
     alignItems: "center",
@@ -618,8 +602,6 @@ const styles = StyleSheet.create({
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
-
-  // XP
   xpSection: {
     width: 220,
     gap: 6,
@@ -644,8 +626,6 @@ const styles = StyleSheet.create({
     height: "100%",
     borderRadius: 999,
   },
-
-  // Stats
   statsRow: {
     flexDirection: "row",
     gap: 10,
@@ -671,8 +651,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textSecondary,
   },
-
-  // Buttons
   evolveButton: {
     alignSelf: "stretch",
     paddingVertical: 14,
