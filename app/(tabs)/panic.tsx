@@ -3,13 +3,27 @@ import { Text, StyleSheet, View, Pressable, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { LinearGradient } from "expo-linear-gradient";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { router } from "expo-router";
 import { colors } from "../../src/theme/colors";
+import { usePet } from "../../src/state/petStore";
+import { useSessions, PanicOutcome } from "../../src/state/sessionStore";
+import { XP_AWARDS, getTodayKey } from "../../src/domain/rewards";
 
-type Phase = "select" | "intensity" | "timer" | "script" | "outcome";
+type Phase =
+  | "select"
+  | "intensity"
+  | "timer"
+  | "script"
+  | "outcome_choice"
+  | "outcome";
 
 type UrgeType = "checking" | "washing" | "counting" | "other";
 
-const urgeTypes: { id: UrgeType; label: string; icon: keyof typeof Ionicons.glyphMap }[] = [
+const urgeTypes: {
+  id: UrgeType;
+  label: string;
+  icon: keyof typeof Ionicons.glyphMap;
+}[] = [
   { id: "checking", label: "Checking", icon: "eye-outline" },
   { id: "washing", label: "Washing", icon: "water-outline" },
   { id: "counting", label: "Counting", icon: "stats-chart-outline" },
@@ -25,33 +39,64 @@ const acceptanceScripts = [
   "Remember a time you stayed with discomfort without acting on it.",
 ];
 
+const TIMER_TOTAL = 120;
+
 export default function PanicScreen() {
   const insets = useSafeAreaInsets();
+  const { dispatch: petDispatch } = usePet();
+  const { dispatch: sessionDispatch } = useSessions();
+
   const [phase, setPhase] = useState<Phase>("select");
   const [selectedUrge, setSelectedUrge] = useState<UrgeType | null>(null);
   const [intensity, setIntensity] = useState(5);
-  const [timerSeconds, setTimerSeconds] = useState(120);
-  const [timerRunning, setTimerRunning] = useState(false);
+  const [timerSeconds, setTimerSeconds] = useState(TIMER_TOTAL);
   const [scriptIndex, setScriptIndex] = useState(0);
+  const [chosenOutcome, setChosenOutcome] = useState<PanicOutcome | null>(null);
+  const [chosenXp, setChosenXp] = useState(0);
+
+  // Single stable interval ref — never recreated each tick
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Track session start time (set when entering timer phase)
+  const sessionStartRef = useRef<number>(0);
+  // Track seconds at timer-stop for duration calculation
+  const timerSecondsRef = useRef(TIMER_TOTAL);
 
+  const stopTimer = () => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  };
+
+  // Start timer when phase becomes "timer" — single effect, no timerSeconds dep
   useEffect(() => {
-    if (timerRunning && timerSeconds > 0) {
-      intervalRef.current = setInterval(() => {
-        setTimerSeconds((s) => s - 1);
-      }, 1000);
-      return () => {
-        if (intervalRef.current) {
-          clearInterval(intervalRef.current);
-        }
-      };
-    }
+    if (phase !== "timer") return;
 
-    if (timerSeconds === 0) {
-      setPhase("script");
-      setTimerRunning(false);
-    }
-  }, [timerRunning, timerSeconds]);
+    sessionStartRef.current = Date.now();
+    timerSecondsRef.current = TIMER_TOTAL;
+
+    intervalRef.current = setInterval(() => {
+      setTimerSeconds((s) => {
+        if (s <= 1) {
+          // Timer finished naturally — clear interval and advance phase
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          timerSecondsRef.current = 0;
+          setPhase("script");
+          return 0;
+        }
+        timerSecondsRef.current = s - 1;
+        return s - 1;
+      });
+    }, 1000);
+
+    return () => stopTimer();
+  }, [phase]); // Only re-runs when phase changes — NOT every tick
+
+  // Clean up on unmount
+  useEffect(() => {
+    return () => stopTimer();
+  }, []);
 
   const formatTime = (s: number) => {
     const m = Math.floor(s / 60);
@@ -59,13 +104,58 @@ export default function PanicScreen() {
     return `${m}:${sec.toString().padStart(2, "0")}`;
   };
 
+  const handleOutcomeChoice = (outcome: PanicOutcome) => {
+    stopTimer();
+
+    const xpAwarded =
+      outcome === "resisted"
+        ? XP_AWARDS.panic_resist
+        : outcome === "partial"
+          ? XP_AWARDS.panic_partial
+          : XP_AWARDS.panic_compulsion;
+
+    const durationSec = TIMER_TOTAL - timerSecondsRef.current;
+    const endedAt = new Date().toISOString();
+    const startedAt = new Date(sessionStartRef.current || Date.now()).toISOString();
+
+    // Persist session
+    sessionDispatch({
+      type: "ADD_SESSION",
+      session: {
+        id: Date.now().toString(),
+        startedAt,
+        endedAt,
+        durationSec,
+        urgeRating: intensity,
+        outcome,
+        xpAwarded,
+      },
+    });
+
+    // Update pet
+    if (xpAwarded > 0) {
+      petDispatch({ type: "ADD_XP", amount: xpAwarded });
+    }
+    if (outcome !== "compulsion") {
+      petDispatch({ type: "RECORD_RESIST" });
+    }
+    petDispatch({ type: "MARK_ACTIVITY", dateKey: getTodayKey() });
+
+    setChosenOutcome(outcome);
+    setChosenXp(xpAwarded);
+    setPhase("outcome");
+  };
+
   const resetFlow = () => {
+    stopTimer();
     setPhase("select");
     setSelectedUrge(null);
     setIntensity(5);
-    setTimerSeconds(120);
-    setTimerRunning(false);
+    setTimerSeconds(TIMER_TOTAL);
+    timerSecondsRef.current = TIMER_TOTAL;
     setScriptIndex(0);
+    setChosenOutcome(null);
+    setChosenXp(0);
   };
 
   return (
@@ -87,17 +177,23 @@ export default function PanicScreen() {
       >
         <Text style={styles.title}>Calm Down 🌿</Text>
         <Text style={styles.subtitle}>
-          You're doing great. Let's work through this together.
+          Notice the urge. You can choose how to respond.
         </Text>
 
+        {/* Phase: select urge type */}
         {phase === "select" && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>What kind of urge are you feeling?</Text>
+            <Text style={styles.sectionTitle}>
+              What kind of urge are you feeling?
+            </Text>
             <View style={styles.urgeList}>
               {urgeTypes.map((urge) => (
                 <Pressable
                   key={urge.id}
-                  style={({ pressed }) => [styles.urgeButton, pressed && styles.urgeButtonPressed]}
+                  style={({ pressed }) => [
+                    styles.urgeButton,
+                    pressed && styles.urgeButtonPressed,
+                  ]}
                   onPress={() => {
                     setSelectedUrge(urge.id);
                     setPhase("intensity");
@@ -111,15 +207,18 @@ export default function PanicScreen() {
           </View>
         )}
 
+        {/* Phase: rate intensity */}
         {phase === "intensity" && (
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>How strong is this urge?</Text>
             <View style={styles.intensityRow}>
               {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => {
                 const active = n <= intensity;
-                const groupColor = n <= 3 ? "#C084FC" : n <= 7 ? "#7C3AED" : "#3B0764";
+                const groupColor =
+                  n <= 3 ? "#C084FC" : n <= 7 ? "#7C3AED" : "#3B0764";
                 const backgroundColor = active ? groupColor : "#E5E7EB";
-                const labelColor = active && n <= 3 ? "#6D28D9" : "#FFFFFF";
+                const labelColor =
+                  active && n <= 3 ? "#6D28D9" : active ? "#FFFFFF" : colors.textSecondary;
 
                 return (
                   <Pressable
@@ -134,18 +233,20 @@ export default function PanicScreen() {
                 );
               })}
             </View>
+            {/* No reassurance — acceptance language only */}
             <Text style={styles.intensityHint}>
               {intensity <= 3
-                ? "You're safe. Take a gentle breath."
+                ? "Notice this feeling. It will pass on its own."
                 : intensity <= 7
-                ? "It's okay. You don't have to act on this."
-                : "You're safe. This feeling will crest and fade."}
+                  ? "You can sit with this urge without acting on it."
+                  : "This is hard. You don't have to do anything right now."}
             </Text>
             <Pressable
               style={styles.primaryButton}
               onPress={() => {
+                setTimerSeconds(TIMER_TOTAL);
+                timerSecondsRef.current = TIMER_TOTAL;
                 setPhase("timer");
-                setTimerRunning(true);
               }}
             >
               <Text style={styles.primaryButtonText}>Start delay timer</Text>
@@ -153,9 +254,12 @@ export default function PanicScreen() {
           </View>
         )}
 
+        {/* Phase: countdown timer */}
         {phase === "timer" && (
           <View style={[styles.section, styles.timerSection]}>
-            <Text style={styles.timerHint}>Notice your breath while the timer runs.</Text>
+            <Text style={styles.timerHint}>
+              Notice your breath while the timer runs.
+            </Text>
             <View style={styles.timerCircle}>
               <Text style={styles.timerText}>{formatTime(timerSeconds)}</Text>
             </View>
@@ -163,7 +267,7 @@ export default function PanicScreen() {
               <Pressable
                 style={styles.secondaryButton}
                 onPress={() => {
-                  setTimerRunning(false);
+                  stopTimer();
                   setPhase("script");
                 }}
               >
@@ -172,8 +276,8 @@ export default function PanicScreen() {
               <Pressable
                 style={styles.primaryButton}
                 onPress={() => {
-                  setTimerRunning(false);
-                  setPhase("outcome");
+                  stopTimer();
+                  setPhase("outcome_choice");
                 }}
               >
                 <Text style={styles.primaryButtonText}>I stayed with it</Text>
@@ -182,6 +286,7 @@ export default function PanicScreen() {
           </View>
         )}
 
+        {/* Phase: acceptance script */}
         {phase === "script" && (
           <View style={styles.section}>
             <Text style={styles.scriptText}>
@@ -190,13 +295,15 @@ export default function PanicScreen() {
             <View style={styles.timerButtonsRow}>
               <Pressable
                 style={styles.secondaryButton}
-                onPress={() => setScriptIndex((i) => (i + 1) % acceptanceScripts.length)}
+                onPress={() =>
+                  setScriptIndex((i) => (i + 1) % acceptanceScripts.length)
+                }
               >
                 <Text style={styles.secondaryButtonText}>Next thought</Text>
               </Pressable>
               <Pressable
                 style={styles.primaryButton}
-                onPress={() => setPhase("outcome")}
+                onPress={() => setPhase("outcome_choice")}
               >
                 <Text style={styles.primaryButtonText}>Move on</Text>
               </Pressable>
@@ -204,18 +311,88 @@ export default function PanicScreen() {
           </View>
         )}
 
+        {/* Phase: user picks outcome */}
+        {phase === "outcome_choice" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>How did it go?</Text>
+            <View style={styles.outcomeChoiceList}>
+              <Pressable
+                style={styles.outcomeChoiceButton}
+                onPress={() => handleOutcomeChoice("resisted")}
+              >
+                <View style={styles.outcomeChoiceTextBlock}>
+                  <Text style={styles.outcomeChoiceLabel}>
+                    I resisted the urge
+                  </Text>
+                </View>
+                <View style={styles.xpChip}>
+                  <Text style={styles.xpChipText}>+{XP_AWARDS.panic_resist} XP</Text>
+                </View>
+              </Pressable>
+
+              <Pressable
+                style={styles.outcomeChoiceButton}
+                onPress={() => handleOutcomeChoice("partial")}
+              >
+                <View style={styles.outcomeChoiceTextBlock}>
+                  <Text style={styles.outcomeChoiceLabel}>
+                    I partially resisted
+                  </Text>
+                </View>
+                <View style={styles.xpChip}>
+                  <Text style={styles.xpChipText}>+{XP_AWARDS.panic_partial} XP</Text>
+                </View>
+              </Pressable>
+
+              <Pressable
+                style={[styles.outcomeChoiceButton, styles.outcomeChoiceNeutral]}
+                onPress={() => handleOutcomeChoice("compulsion")}
+              >
+                <View style={styles.outcomeChoiceTextBlock}>
+                  <Text style={styles.outcomeChoiceLabel}>I gave in</Text>
+                  <Text style={styles.outcomeChoiceSub}>
+                    That's okay — you showed up.
+                  </Text>
+                </View>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
+        {/* Phase: result */}
         {phase === "outcome" && (
           <View style={[styles.section, styles.outcomeSection]}>
-            <Text style={styles.outcomeEmoji}>✨</Text>
-            <Text style={styles.outcomeTitle}>You stayed with a hard moment.</Text>
-            <Text style={styles.outcomeText}>
-              Each time you pause like this, you build a little more space between urges and
-              actions.
+            <Text style={styles.outcomeEmoji}>
+              {chosenOutcome === "resisted"
+                ? "✨"
+                : chosenOutcome === "partial"
+                  ? "🌱"
+                  : "💛"}
             </Text>
-            <View style={styles.xpChip}>
-              <Text style={styles.xpChipText}>+10 XP</Text>
-            </View>
-            <Pressable style={styles.primaryButton} onPress={resetFlow}>
+            <Text style={styles.outcomeTitle}>
+              {chosenOutcome === "resisted"
+                ? "You stayed with a hard moment."
+                : chosenOutcome === "partial"
+                  ? "Every bit of resistance matters."
+                  : "You showed up. That takes courage."}
+            </Text>
+            <Text style={styles.outcomeText}>
+              {chosenOutcome === "compulsion"
+                ? "Coming back to this moment is already a step forward."
+                : "Each time you pause like this, you build a little more space between urges and actions."}
+            </Text>
+            {chosenXp > 0 && (
+              <View style={styles.xpChip}>
+                <Text style={styles.xpChipText}>+{chosenXp} XP</Text>
+              </View>
+            )}
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                resetFlow();
+                router.navigate("/(tabs)/pet");
+              }}
+            >
               <Text style={styles.primaryButtonText}>Back to cat</Text>
             </Pressable>
           </View>
@@ -237,12 +414,13 @@ const styles = StyleSheet.create({
     gap: 20,
   },
   title: {
+    fontFamily: "Nunito_800ExtraBold",
     fontSize: 26,
-    fontWeight: "700",
     color: colors.textPrimary,
     letterSpacing: -0.5,
   },
   subtitle: {
+    fontFamily: "Nunito_400Regular",
     marginTop: -8,
     fontSize: 14,
     color: colors.textSecondary,
@@ -253,8 +431,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   sectionTitle: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 15,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   urgeList: {
@@ -278,8 +456,8 @@ const styles = StyleSheet.create({
     opacity: 0.85,
   },
   urgeLabel: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 15,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   intensityRow: {
@@ -295,12 +473,14 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   intensityLabel: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 12,
-    color: colors.textSecondary,
   },
   intensityHint: {
-    fontSize: 12,
+    fontFamily: "Nunito_400Regular",
+    fontSize: 13,
     color: colors.textSecondary,
+    lineHeight: 18,
   },
   primaryButton: {
     marginTop: 4,
@@ -311,8 +491,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   primaryButtonText: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 14,
-    fontWeight: "600",
     color: "#FFFFFF",
   },
   secondaryButton: {
@@ -326,8 +506,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   secondaryButtonText: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 14,
-    fontWeight: "500",
     color: colors.textSecondary,
   },
   timerSection: {
@@ -335,6 +515,7 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   timerHint: {
+    fontFamily: "Nunito_400Regular",
     fontSize: 13,
     color: colors.textSecondary,
     textAlign: "center",
@@ -355,23 +536,63 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   timerText: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 32,
-    fontWeight: "600",
     color: colors.textPrimary,
   },
   timerButtonsRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     gap: 12,
+    alignSelf: "stretch",
   },
   scriptText: {
+    fontFamily: "Nunito_600SemiBold",
     fontSize: 16,
-    fontWeight: "600",
     color: colors.textPrimary,
     textAlign: "center",
     lineHeight: 24,
     paddingHorizontal: 8,
   },
+  // Outcome choice
+  outcomeChoiceList: {
+    gap: 10,
+  },
+  outcomeChoiceButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    borderRadius: 16,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.borderSubtle,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  outcomeChoiceNeutral: {
+    backgroundColor: "#FFF7ED",
+    borderColor: "#FED7AA",
+  },
+  outcomeChoiceTextBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  outcomeChoiceLabel: {
+    fontFamily: "Nunito_600SemiBold",
+    fontSize: 14,
+    color: colors.textPrimary,
+  },
+  outcomeChoiceSub: {
+    fontFamily: "Nunito_400Regular",
+    fontSize: 12,
+    color: colors.textSecondary,
+  },
+  // Outcome result
   outcomeSection: {
     alignItems: "center",
     gap: 12,
@@ -380,12 +601,13 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   outcomeTitle: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 18,
-    fontWeight: "600",
     color: colors.textPrimary,
     textAlign: "center",
   },
   outcomeText: {
+    fontFamily: "Nunito_400Regular",
     fontSize: 14,
     color: colors.textSecondary,
     textAlign: "center",
@@ -401,8 +623,8 @@ const styles = StyleSheet.create({
     borderColor: colors.borderSubtle,
   },
   xpChipText: {
+    fontFamily: "Nunito_700Bold",
     fontSize: 12,
     color: colors.accent,
-    fontWeight: "600",
   },
 });
