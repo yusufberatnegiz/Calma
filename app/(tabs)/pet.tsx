@@ -37,6 +37,13 @@ const catImages: Record<CatStage, ImageSourcePropType> = {
   royal: require("../../assets/cat-grown.png"),
 };
 
+const catBlinkImages: Record<CatStage, ImageSourcePropType> = {
+  baby: require("../../assets/cat-blink.png"),
+  teen: require("../../assets/cat-idle-blink.png"),
+  elite: require("../../assets/cat-elite-blink.png"),
+  royal: require("../../assets/cat-grown-blink.png"),
+};
+
 const CAT_SIZE = 240;
 const CAT_SIZE_ELITE = 260;
 const CAT_SIZE_ROYAL = 280;
@@ -161,30 +168,15 @@ export default function PetScreen() {
     return () => loop.stop();
   }, []);
 
-  // Periodic blink every 3–5.5 s
+  // Periodic blink every 3–5.5 s (all stages use layered blink image)
   useEffect(() => {
     const schedule = () => {
       blinkTimer.current = setTimeout(() => {
-        if (stageRef.current === "baby") {
-          setIsBlinking(true);
-          blinkCloseTimer.current = setTimeout(() => {
-            setIsBlinking(false);
-            schedule();
-          }, 150);
-        } else {
-          Animated.sequence([
-            Animated.timing(catOpacity, {
-              toValue: 0.5,
-              duration: 70,
-              useNativeDriver: true,
-            }),
-            Animated.timing(catOpacity, {
-              toValue: 1,
-              duration: 70,
-              useNativeDriver: true,
-            }),
-          ]).start(() => schedule());
-        }
+        setIsBlinking(true);
+        blinkCloseTimer.current = setTimeout(() => {
+          setIsBlinking(false);
+          schedule();
+        }, 150);
       }, 3000 + Math.random() * 2500);
     };
     schedule();
@@ -380,29 +372,32 @@ export default function PetScreen() {
             style={[styles.catWrap, { width: catSize, height: catSize }]}
           >
             <Animated.View
-              style={{
-                width: catSize,
-                height: catSize,
-                transform: [{ translateY: floatAnim }, { scale: catScale }],
-              }}
+              style={[
+                styles.catImageStack,
+                {
+                  width: catSize,
+                  height: catSize,
+                  transform: [{ translateY: floatAnim }, { scale: catScale }],
+                },
+              ]}
             >
               <Animated.Image
                 source={catImages[stage]}
                 style={[
-                  styles.catImage,
+                  styles.catImageLayer,
                   { width: catSize, height: catSize, opacity: catOpacity },
                 ]}
                 resizeMode="contain"
               />
               <Animated.Image
-                source={require("../../assets/cat-blink.png")}
+                source={catBlinkImages[stage]}
                 style={[
-                  styles.catImage,
+                  styles.catImageLayer,
                   {
                     width: catSize,
                     height: catSize,
-                    position: "absolute",
-                    opacity: isBlinking && stage === "baby" ? 1 : 0,
+                    opacity: isBlinking ? 1 : 0,
+                    transform: [{ translateX: 2 }],
                   },
                 ]}
                 resizeMode="contain"
@@ -577,6 +572,17 @@ const styles = StyleSheet.create({
   catWrap: {
     alignItems: "center",
     justifyContent: "center",
+  },
+  catImageStack: {
+    position: "relative",
+    overflow: "hidden",
+  },
+  catImageLayer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
   },
   catImage: {
     position: "absolute",
