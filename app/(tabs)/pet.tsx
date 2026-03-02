@@ -259,9 +259,10 @@ export default function PetScreen() {
     });
   };
 
-  // Tap: animation only — NO XP awarded from petting
+  // Tap: +5 XP per tap (temporary, for testing)
   const handlePetCat = () => {
     if (isEvolving) return;
+    dispatch({ type: "ADD_XP", amount: 5 });
     const count = 2 + Math.floor(Math.random() * 2);
     for (let i = 0; i < count; i++) setTimeout(spawnHeart, i * 180);
     Animated.sequence([
