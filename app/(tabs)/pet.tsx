@@ -381,27 +381,52 @@ export default function PetScreen() {
                 },
               ]}
             >
-              <Animated.Image
-                source={catImages[stage]}
-                style={[
-                  styles.catImageLayer,
-                  { width: catSize, height: catSize, opacity: catOpacity },
-                ]}
-                resizeMode="contain"
-              />
-              <Animated.Image
-                source={catBlinkImages[stage]}
-                style={[
-                  styles.catImageLayer,
-                  {
-                    width: catSize,
-                    height: catSize,
-                    opacity: isBlinking ? 1 : 0,
-                    transform: [{ translateX: 2 }],
-                  },
-                ]}
-                resizeMode="contain"
-              />
+              {/* Baby: single image source swap (perfect alignment). Teen/elite/royal: two layers, same frame so blink aligns with base. */}
+              {stage === "baby" ? (
+                <Animated.Image
+                  source={isBlinking ? catBlinkImages[stage] : catImages[stage]}
+                  style={[
+                    styles.catImageLayer,
+                    {
+                      width: catSize,
+                      height: catSize,
+                      opacity: catOpacity,
+                    },
+                  ]}
+                  resizeMode="contain"
+                />
+              ) : (
+                (() => {
+                  const layerSize = { width: catSize, height: catSize };
+                  return (
+                    <>
+                      <Animated.Image
+                        source={catImages[stage]}
+                        style={[
+                          styles.catImageLayer,
+                          layerSize,
+                          { opacity: catOpacity },
+                        ]}
+                        resizeMode="stretch"
+                      />
+                      <Animated.Image
+                        source={catBlinkImages[stage]}
+                        style={[
+                          styles.catImageLayer,
+                          layerSize,
+                          {
+                            opacity: isBlinking ? 1 : 0,
+                            transform: [
+                              { translateX: stage === "teen" ? -2 : 0 },
+                            ],
+                          },
+                        ]}
+                        resizeMode="stretch"
+                      />
+                    </>
+                  );
+                })()
+              )}
             </Animated.View>
 
             {/* Floating hearts (petting animation) */}
