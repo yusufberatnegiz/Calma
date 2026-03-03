@@ -114,11 +114,12 @@ export default function TasksScreen() {
     setConfettiPieces((prev) => [...prev, ...newPieces]);
   };
 
-  const handleToggleTask = (taskId: string, taskXp: number, isCompleted: boolean) => {
+  const handleToggleTask = (taskId: string, taskXp: number, isCompleted: boolean, xpAwarded: boolean) => {
     taskDispatch({ type: "TOGGLE_TASK", id: taskId });
 
-    if (!isCompleted) {
-      // Task is being completed (not un-completed)
+    if (!isCompleted && !xpAwarded) {
+      // First-time completion only — xpAwarded flag prevents re-award on un-check/re-check
+      taskDispatch({ type: "MARK_TASK_XP_AWARDED", id: taskId });
       awardXp(petDispatch, { amount: taskXp, reason: "task_complete", activityDateKey: today });
       petDispatch({ type: "RECORD_TASK_COMPLETED" });
 
@@ -216,7 +217,7 @@ export default function TasksScreen() {
               >
                 <Pressable
                   onPress={() =>
-                    handleToggleTask(task.id, task.xp, task.isCompleted)
+                    handleToggleTask(task.id, task.xp, task.isCompleted, task.xpAwarded ?? false)
                   }
                   style={styles.taskCardInner}
                 >

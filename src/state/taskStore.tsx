@@ -7,6 +7,8 @@ export type Task = {
   description: string;
   xp: number;
   isCompleted: boolean;
+  /** True once XP has been awarded for this task; prevents re-award on un-check/re-check. */
+  xpAwarded: boolean;
   dateKey: string;  // YYYY-MM-DD
   isCustom: boolean;
 };
@@ -50,6 +52,7 @@ function generateDailyTasks(dateKey: string): Task[] {
     description: t.description,
     xp: t.xp,
     isCompleted: false,
+    xpAwarded: false,
     dateKey,
     isCustom: false,
   }));
@@ -65,6 +68,7 @@ export type TaskAction =
   | { type: "LOAD"; payload: TaskState }
   | { type: "ENSURE_DAILY"; dateKey: string }
   | { type: "TOGGLE_TASK"; id: string }
+  | { type: "MARK_TASK_XP_AWARDED"; id: string }
   | { type: "DELETE_TASK"; id: string }
   | { type: "ADD_CUSTOM"; task: Task }
   | { type: "SET_BONUS_DATE"; dateKey: string };
@@ -94,6 +98,14 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
         ...state,
         tasks: state.tasks.map((t) =>
           t.id === action.id ? { ...t, isCompleted: !t.isCompleted } : t
+        ),
+      };
+
+    case "MARK_TASK_XP_AWARDED":
+      return {
+        ...state,
+        tasks: state.tasks.map((t) =>
+          t.id === action.id ? { ...t, xpAwarded: true } : t
         ),
       };
 
