@@ -365,9 +365,9 @@ export default function PetScreen() {
             <Text style={styles.mood}>{name} is here with you</Text>
           </View>
           <View style={styles.xpBadge}>
-            <Ionicons name="star" size={13} color={colors.accent} />
-            <Text style={styles.xpBadgeText}>
-              {isRoyal ? `${royalStars} ★` : `${xp} XP`}
+            <Ionicons name="star" size={13} color={isRoyal ? "#FFD700" : colors.accent} />
+            <Text style={[styles.xpBadgeText, isRoyal && { color: "#FFD700" }]}>
+              {isRoyal ? `${royalStars} Stars` : `${xp} XP`}
             </Text>
           </View>
         </View>
