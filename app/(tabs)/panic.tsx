@@ -7,7 +7,7 @@ import { router } from "expo-router";
 import { colors } from "../../src/theme/colors";
 import { usePet } from "../../src/state/petStore";
 import { useSessions, PanicOutcome } from "../../src/state/sessionStore";
-import { XP_AWARDS, getTodayKey } from "../../src/domain/rewards";
+import { XP_AWARDS, awardXp, getTodayKey } from "../../src/domain/rewards";
 
 type Phase =
   | "select"
@@ -133,13 +133,14 @@ export default function PanicScreen() {
     });
 
     // Update pet
-    if (xpAwarded > 0) {
-      petDispatch({ type: "ADD_XP", amount: xpAwarded });
-    }
+    awardXp(petDispatch, {
+      amount: xpAwarded,
+      reason: `panic_${outcome}`,
+      activityDateKey: getTodayKey(),
+    });
     if (outcome !== "compulsion") {
       petDispatch({ type: "RECORD_RESIST" });
     }
-    petDispatch({ type: "MARK_ACTIVITY", dateKey: getTodayKey() });
 
     setChosenOutcome(outcome);
     setChosenXp(xpAwarded);

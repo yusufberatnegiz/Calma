@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useReducer } from "react";
+import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type PanicOutcome = "resisted" | "partial" | "compulsion";
@@ -37,6 +37,7 @@ function sessionReducer(state: SessionState, action: SessionAction): SessionStat
 
 type SessionContextValue = {
   sessions: PanicSession[];
+  storeReady: boolean;
   dispatch: React.Dispatch<SessionAction>;
 };
 
@@ -44,7 +45,9 @@ const SessionContext = createContext<SessionContextValue | null>(null);
 
 export function SessionProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(sessionReducer, defaultState);
+  const [storeReady, setStoreReady] = useState(false);
 
+  // Phase 1: Load, then mark ready
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
@@ -54,15 +57,18 @@ export function SessionProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setStoreReady(true));
   }, []);
 
+  // Phase 2: Persist ONLY after hydration
   useEffect(() => {
+    if (!storeReady) return;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
-  }, [state]);
+  }, [state, storeReady]);
 
   return (
-    <SessionContext.Provider value={{ sessions: state.sessions, dispatch }}>
+    <SessionContext.Provider value={{ sessions: state.sessions, storeReady, dispatch }}>
       {children}
     </SessionContext.Provider>
   );
