@@ -15,7 +15,7 @@ import { Screen } from "../../src/components/Screen";
 import { colors } from "../../src/theme/colors";
 import { useTasks } from "../../src/state/taskStore";
 import { usePet } from "../../src/state/petStore";
-import { XP_AWARDS, getTodayKey } from "../../src/domain/rewards";
+import { XP_AWARDS, awardXp, getTodayKey } from "../../src/domain/rewards";
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get("window");
 
@@ -119,9 +119,8 @@ export default function TasksScreen() {
 
     if (!isCompleted) {
       // Task is being completed (not un-completed)
-      petDispatch({ type: "ADD_XP", amount: taskXp });
+      awardXp(petDispatch, { amount: taskXp, reason: "task_complete", activityDateKey: today });
       petDispatch({ type: "RECORD_TASK_COMPLETED" });
-      petDispatch({ type: "MARK_ACTIVITY", dateKey: today });
 
       // Check if this completes all tasks and bonus hasn't been awarded today
       const remainingAfter = todayTasks.filter(
@@ -129,7 +128,7 @@ export default function TasksScreen() {
       );
       if (remainingAfter.length === 0 && bonusAwardedDate !== today) {
         taskDispatch({ type: "SET_BONUS_DATE", dateKey: today });
-        petDispatch({ type: "ADD_XP", amount: XP_AWARDS.task_all_bonus });
+        awardXp(petDispatch, { amount: XP_AWARDS.task_all_bonus, reason: "task_all_bonus" });
         launchConfetti();
       }
     }

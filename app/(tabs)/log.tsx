@@ -13,7 +13,7 @@ import { Screen } from "../../src/components/Screen";
 import { colors } from "../../src/theme/colors";
 import { useLogs, MoodValue } from "../../src/state/logStore";
 import { usePet } from "../../src/state/petStore";
-import { XP_AWARDS, getTodayKey } from "../../src/domain/rewards";
+import { XP_AWARDS, awardXp, getTodayKey } from "../../src/domain/rewards";
 
 function NeutralFaceIcon({
   size = 24,
@@ -140,10 +140,11 @@ export default function LogScreen() {
     });
 
     // Award XP only on first save of the day
-    if (isFirstSaveToday) {
-      petDispatch({ type: "ADD_XP", amount: XP_AWARDS.log_save });
-    }
-    petDispatch({ type: "MARK_ACTIVITY", dateKey: today });
+    awardXp(petDispatch, {
+      amount: isFirstSaveToday ? XP_AWARDS.log_save : 0,
+      reason: "log_save",
+      activityDateKey: today,
+    });
 
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);

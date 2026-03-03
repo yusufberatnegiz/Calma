@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useReducer } from "react";
+import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export type MoodValue = 1 | 3 | 5;
@@ -39,6 +39,7 @@ function logReducer(state: LogState, action: LogAction): LogState {
 
 type LogContextValue = {
   logs: Record<string, DailyLog>;
+  storeReady: boolean;
   dispatch: React.Dispatch<LogAction>;
 };
 
@@ -46,7 +47,9 @@ const LogContext = createContext<LogContextValue | null>(null);
 
 export function LogProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(logReducer, defaultState);
+  const [storeReady, setStoreReady] = useState(false);
 
+  // Phase 1: Load, then mark ready
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY)
       .then((raw) => {
@@ -56,15 +59,18 @@ export function LogProvider({ children }: { children: React.ReactNode }) {
           } catch {}
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setStoreReady(true));
   }, []);
 
+  // Phase 2: Persist ONLY after hydration
   useEffect(() => {
+    if (!storeReady) return;
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state)).catch(() => {});
-  }, [state]);
+  }, [state, storeReady]);
 
   return (
-    <LogContext.Provider value={{ logs: state.logs, dispatch }}>
+    <LogContext.Provider value={{ logs: state.logs, storeReady, dispatch }}>
       {children}
     </LogContext.Provider>
   );

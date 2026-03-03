@@ -12,7 +12,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { colors } from "../../src/theme/colors";
 import { usePet } from "../../src/state/petStore";
-import { XP_THRESHOLDS, CatStage } from "../../src/domain/rewards";
+import { XP_THRESHOLDS, ROYAL_STAR_XP, xpToNextRoyalStar, CatStage } from "../../src/domain/rewards";
 
 const stages: CatStage[] = ["baby", "teen", "elite", "royal"];
 
@@ -330,11 +330,16 @@ export default function PetScreen() {
     });
   };
 
-  const { stage, xp, name, totalResists, tasksCompleted, streak } = pet;
+  const { stage, xp, name, totalResists, tasksCompleted, streak, royalXp, royalStars } = pet;
   const level = stages.indexOf(stage) + 1;
   const canEvolve = stage !== "royal" && xp >= XP_THRESHOLDS[stage];
-  const maxXp = XP_THRESHOLDS[stage] === Infinity ? 500 : XP_THRESHOLDS[stage];
-  const xpPercent = Math.min((xp / maxXp) * 100, 100);
+
+  // XP bar: normal stages use stage XP; royal uses royalXp within the star interval
+  const isRoyal = stage === "royal";
+  const maxXp = isRoyal ? ROYAL_STAR_XP : (XP_THRESHOLDS[stage] === Infinity ? 500 : XP_THRESHOLDS[stage]);
+  const displayXp = isRoyal ? royalXp : xp;
+  const xpPercent = Math.min((displayXp / maxXp) * 100, 100);
+  const xpToNextStar = xpToNextRoyalStar(royalXp);
   const catSize =
     stage === "royal"
       ? CAT_SIZE_ROYAL
@@ -369,7 +374,9 @@ export default function PetScreen() {
           </View>
           <View style={styles.xpBadge}>
             <Ionicons name="star" size={13} color={colors.accent} />
-            <Text style={styles.xpBadgeText}>{xp} XP</Text>
+            <Text style={styles.xpBadgeText}>
+              {isRoyal ? `${royalStars} ★` : `${xp} XP`}
+            </Text>
           </View>
         </View>
 
@@ -463,19 +470,26 @@ export default function PetScreen() {
           {/* XP bar */}
           <View style={styles.xpSection}>
             <View style={styles.xpRow}>
-              <Text style={styles.xpMeta}>Level {level}</Text>
               <Text style={styles.xpMeta}>
-                {xp} / {maxXp}
+                {isRoyal ? "Royal Mastery" : `Level ${level}`}
+              </Text>
+              <Text style={styles.xpMeta}>
+                {displayXp} / {maxXp}
               </Text>
             </View>
             <View style={styles.xpBarBg}>
               <LinearGradient
-                colors={[colors.accentLight, colors.accent]}
+                colors={isRoyal ? ["#FFD700", "#FFA500"] : [colors.accentLight, colors.accent]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
                 style={[styles.xpBarFill, { width: `${xpPercent}%` }]}
               />
             </View>
+            {isRoyal && (
+              <Text style={styles.xpMeta}>
+                {royalStars > 0 ? `Royal Stars: ${royalStars}  ·  ` : ""}Next star in {xpToNextStar} XP
+              </Text>
+            )}
           </View>
         </View>
 
