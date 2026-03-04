@@ -71,6 +71,60 @@ export const ROYAL_UNLOCK_TABLE: Array<{ stars: number; id: string; label: strin
 ];
 
 /**
+ * Bonus daily task templates unlocked by Royal Star packs.
+ * Keyed by the unlock ID from ROYAL_UNLOCK_TABLE.
+ */
+export const ROYAL_TASK_PACKS: Record<string, Array<{
+  suffix: string;
+  title: string;
+  description: string;
+  xp: number;
+}>> = {
+  task_gratitude: [
+    {
+      suffix: "gratitude_list",
+      title: "Write 3 things you're grateful for",
+      description: "Reflect on small positives from today, however simple.",
+      xp: 15,
+    },
+    {
+      suffix: "gratitude_person",
+      title: "Appreciate someone",
+      description: "Tell or show someone you value them.",
+      xp: 10,
+    },
+  ],
+  task_grounding: [
+    {
+      suffix: "ground_54321",
+      title: "5-4-3-2-1 grounding",
+      description: "Name 5 things you see, 4 you hear, 3 you can touch, 2 you smell, 1 you taste.",
+      xp: 15,
+    },
+    {
+      suffix: "ground_anchor",
+      title: "Find your anchor word",
+      description: "Choose one word that represents steadiness for you right now.",
+      xp: 10,
+    },
+  ],
+  task_mindfulness: [
+    {
+      suffix: "mind_body_scan",
+      title: "2-minute body scan",
+      description: "Notice sensations from head to toe slowly, without judgment.",
+      xp: 15,
+    },
+    {
+      suffix: "mind_one_thing",
+      title: "Do one thing mindfully",
+      description: "Eat, walk, or wash your hands with full attention for 2 minutes.",
+      xp: 10,
+    },
+  ],
+};
+
+/**
  * Returns content IDs newly unlocked when stars increase from oldStars to newStars.
  * Pure function – does NOT mutate state.
  */

@@ -421,12 +421,7 @@ export default function PetScreen() {
                         style={[
                           styles.catImageLayer,
                           layerSize,
-                          {
-                            opacity: isBlinking ? 1 : 0,
-                            transform: [
-                              { translateX: stage === "teen" ? -2 : 0 },
-                            ],
-                          },
+                          { opacity: isBlinking ? 1 : 0 },
                         ]}
                         resizeMode="stretch"
                       />

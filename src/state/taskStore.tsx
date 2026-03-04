@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useReducer, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { ROYAL_TASK_PACKS } from "../domain/rewards";
 
 export type Task = {
   id: string;
@@ -66,7 +67,7 @@ type TaskState = {
 
 export type TaskAction =
   | { type: "LOAD"; payload: TaskState }
-  | { type: "ENSURE_DAILY"; dateKey: string }
+  | { type: "ENSURE_DAILY"; dateKey: string; royalUnlocks?: string[] }
   | { type: "TOGGLE_TASK"; id: string }
   | { type: "MARK_TASK_XP_AWARDED"; id: string }
   | { type: "DELETE_TASK"; id: string }
@@ -82,15 +83,40 @@ function taskReducer(state: TaskState, action: TaskAction): TaskState {
       return action.payload;
 
     case "ENSURE_DAILY": {
-      const { dateKey } = action;
-      const alreadyHas = state.tasks.some(
-        (t) => t.dateKey === dateKey && !t.isCustom
+      const { dateKey, royalUnlocks = [] } = action;
+      const existingIds = new Set(
+        state.tasks.filter((t) => t.dateKey === dateKey && !t.isCustom).map((t) => t.id)
       );
-      if (alreadyHas) return state;
-      return {
-        ...state,
-        tasks: [...state.tasks, ...generateDailyTasks(dateKey)],
-      };
+      const newTasks: Task[] = [];
+
+      // Default daily tasks (only if none exist yet for today)
+      if (existingIds.size === 0) {
+        newTasks.push(...generateDailyTasks(dateKey));
+      }
+
+      // Royal unlock task packs — add any pack tasks not yet present
+      for (const unlockId of royalUnlocks) {
+        const pack = ROYAL_TASK_PACKS[unlockId];
+        if (!pack) continue;
+        for (const template of pack) {
+          const id = `${dateKey}_${template.suffix}`;
+          if (!existingIds.has(id)) {
+            newTasks.push({
+              id,
+              title: template.title,
+              description: template.description,
+              xp: template.xp,
+              isCompleted: false,
+              xpAwarded: false,
+              dateKey,
+              isCustom: false,
+            });
+          }
+        }
+      }
+
+      if (newTasks.length === 0) return state;
+      return { ...state, tasks: [...state.tasks, ...newTasks] };
     }
 
     case "TOGGLE_TASK":

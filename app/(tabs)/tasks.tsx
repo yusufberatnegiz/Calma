@@ -37,7 +37,7 @@ type ConfettiPiece = {
 export default function TasksScreen() {
   const today = getTodayKey();
   const { tasks, storeReady, bonusAwardedDate, dispatch: taskDispatch } = useTasks();
-  const { dispatch: petDispatch } = usePet();
+  const { pet, dispatch: petDispatch } = usePet();
 
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [confettiPieces, setConfettiPieces] = useState<ConfettiPiece[]>([]);
@@ -46,8 +46,8 @@ export default function TasksScreen() {
   // Ensure default daily tasks exist only after the store has loaded from storage
   useEffect(() => {
     if (!storeReady) return;
-    taskDispatch({ type: "ENSURE_DAILY", dateKey: today });
-  }, [storeReady, today]);
+    taskDispatch({ type: "ENSURE_DAILY", dateKey: today, royalUnlocks: pet.royalUnlocks });
+  }, [storeReady, today, pet.royalUnlocks]);
 
   // Today's tasks only
   const todayTasks = tasks.filter((t) => t.dateKey === today);
@@ -149,6 +149,7 @@ export default function TasksScreen() {
         description: "",
         xp: 10,
         isCompleted: false,
+        xpAwarded: false,
         dateKey: today,
         isCustom: true,
       },
