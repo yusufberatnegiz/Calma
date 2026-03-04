@@ -237,7 +237,7 @@ export default function PanicScreen() {
             {/* No reassurance — acceptance language only */}
             <Text style={styles.intensityHint}>
               {intensity <= 3
-                ? "Notice this feeling. It will pass on its own."
+                ? "Notice this feeling. You don't have to act on it right now."
                 : intensity <= 7
                   ? "You can sit with this urge without acting on it."
                   : "This is hard. You don't have to do anything right now."}
