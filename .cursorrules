@@ -1,0 +1,21 @@
+You are building Calma (Expo React Native + TypeScript + Firebase).
+
+Priorities:
+- iOS-first, offline-first, calm UI, strong privacy.
+- Panic Button must work offline.
+- No AI features in v1.
+- No reassurance content for OCD.
+
+Coding rules:
+- Strict TypeScript, no any.
+- Keep components small, reusable.
+- Domain logic in src/domain, UI in src/components, features in src/features.
+- Prefer stable dependencies.
+- Write clean, readable code with comments where logic is non-obvious.
+- Add basic error handling for every async call.
+
+Before coding:
+1) Propose a small plan
+2) List files to be created/edited
+3) Implement
+4) Provide a quick test checklist
